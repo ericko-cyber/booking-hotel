@@ -1,0 +1,119 @@
+.section {
+  padding: 28px 40px 80px;
+  background: var(--light-gray);
+}
+
+.header {
+  max-width: 1100px;
+  margin: 0 auto 36px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+}
+
+.eyebrow {
+  font-size: 0.65rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--gold);
+  font-weight: 500;
+  margin-bottom: 6px;
+}
+
+.title {
+  font-family: var(--font-serif);
+  font-size: 2.2rem;
+  font-weight: 500;
+  color: var(--dark);
+  letter-spacing: -0.01em;
+}
+
+.viewAll {
+  background: none;
+  border: none;
+  font-family: var(--font-sans);
+  font-size: 0.8rem;
+  color: var(--teal);
+  font-weight: 500;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  transition: opacity 0.2s;
+}
+.viewAll:hover { opacity: 0.6; }
+
+.grid {
+  max-width: 1100px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: 0.85fr 1.55fr;
+  grid-template-rows: auto auto;
+  gap: 16px;
+}
+
+.card {
+  border-radius: 14px;
+  overflow: hidden;
+  cursor: pointer;
+  position: relative;
+  transition: transform 0.3s ease;
+  background-size: cover;
+  background-position: center;
+}
+
+.card:hover {
+  transform: scale(1.015);
+}
+
+.card::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,0.2);
+  transition: background 0.3s;
+}
+
+.card:hover::after {
+  background: rgba(0,0,0,0.05);
+}
+
+.tall {
+  grid-row: span 2;
+  min-height: 420px;
+}
+
+.normal {
+  min-height: 200px;
+}
+
+.cardContent {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 24px;
+  z-index: 2;
+  background: linear-gradient(to top, rgba(0,0,0,0.68) 0%, rgba(0,0,0,0.03) 100%);
+}
+
+.moodName {
+  font-family: var(--font-serif);
+  font-size: 2rem;
+  font-weight: 500;
+  color: white;
+  margin-bottom: 6px;
+}
+
+.moodDesc {
+  font-size: 0.78rem;
+  color: rgba(255,255,255,0.75);
+  line-height: 1.5;
+  max-width: 280px;
+}
+
+@media (max-width: 700px) {
+  .grid {
+    grid-template-columns: 1fr;
+  }
+  .tall { grid-row: span 1; min-height: 240px; }
+  .section { padding: 24px 20px 48px; }
+}

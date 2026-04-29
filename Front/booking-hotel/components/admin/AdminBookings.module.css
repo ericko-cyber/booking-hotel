@@ -1,0 +1,197 @@
+.toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.tabs {
+  display: flex;
+  gap: 4px;
+}
+
+.tab {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 34px;
+  padding: 0 13px;
+  background: #fff;
+  border: 1.5px solid #e8e4de;
+  border-radius: 7px;
+  font-family: var(--sans);
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #888;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.tab:hover {
+  border-color: #0a1628;
+  color: #0a1628;
+}
+
+.tabOn {
+  background: #0a1628;
+  border-color: #0a1628;
+  color: #fff;
+}
+
+.cnt {
+  font-size: 10px;
+  background: #f0eee9;
+  color: #888;
+  padding: 1px 6px;
+  border-radius: 10px;
+}
+
+.tabOn .cnt {
+  background: rgba(255, 255, 255, 0.2);
+  color: #fff;
+}
+
+.tableWrap {
+  overflow-x: auto;
+  border-radius: 10px;
+  border: 1px solid #e8e4de;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  background: #fff;
+}
+
+.table thead tr {
+  background: #f9f8f6;
+  border-bottom: 1.5px solid #e8e4de;
+}
+
+.table th {
+  padding: 10px 14px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #aaa;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.table td {
+  padding: 12px 14px;
+  border-bottom: 1px solid #f5f3ef;
+  vertical-align: middle;
+}
+
+.table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.tr {
+  cursor: pointer;
+  transition: background 0.1s;
+}
+
+.tr:hover {
+  background: #faf9f6;
+}
+
+.tdId {
+  font-family: monospace;
+  font-size: 12px;
+  color: #ccc;
+}
+
+.guestCell {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.gavt {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: #0a1628;
+  color: #c49a3c;
+  font-size: 12px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.tdMuted {
+  color: #777;
+}
+
+.tdCenter {
+  text-align: center;
+  color: #777;
+}
+
+.tdPrice {
+  font-family: var(--serif);
+  font-size: 15px;
+  font-weight: 700;
+  color: #111;
+  white-space: nowrap;
+}
+
+.tdComm {
+  color: #7a7a7a;
+  white-space: nowrap;
+}
+
+.detailContent {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.detailHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #f0eee9;
+  margin-bottom: 10px;
+}
+
+.detailId {
+  font-family: monospace;
+  font-size: 12px;
+  color: #aaa;
+}
+
+.detailGuest {
+  font-family: var(--serif);
+  font-size: 20px;
+  font-weight: 700;
+  color: #111;
+}
+
+.detailRow {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  padding: 9px 0;
+  border-bottom: 1px solid #f9f8f6;
+  gap: 12px;
+}
+
+.detailRow span {
+  color: #888;
+}
+
+.detailRow strong {
+  font-weight: 600;
+  color: #111;
+  text-align: right;
+}

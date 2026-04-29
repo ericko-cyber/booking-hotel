@@ -1,0 +1,49 @@
+.layout { display: grid; grid-template-columns: 1fr 300px; gap: 16px; align-items: start; }
+.left { display: flex; flex-direction: column; gap: 16px; }
+.right { display: flex; flex-direction: column; gap: 16px; }
+
+.sectionHead { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 20px; gap: 12px; }
+.sectionTitle { font-family: var(--serif); font-size: 16px; font-weight: 700; color: #111; margin-bottom: 4px; }
+.sectionSub { font-size: 12.5px; color: #aaa; line-height: 1.5; }
+
+.avatarBig {
+  width: 52px; height: 52px; border-radius: 50%;
+  background: #1b4d5c; color: #c49a3c;
+  font-size: 16px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+
+.twoField { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.spacer { height: 4px; }
+
+.textarea {
+  width: 100%; background: #f9f8f6; border: 1.5px solid #e2e0dd;
+  border-radius: 7px; padding: 10px 12px; font-family: var(--sans);
+  font-size: 13.5px; color: #111; outline: none; resize: vertical;
+  transition: border-color 0.15s;
+}
+.textarea:focus { border-color: #1b4d5c; background: #fff; }
+
+.saveRow { display: flex; align-items: center; justify-content: flex-end; gap: 14px; margin-top: 20px; border-top: 1px solid #f5f4f1; padding-top: 16px; }
+.savedMsg { font-size: 12.5px; font-weight: 600; color: #1e7a3a; }
+.errMsg { font-size: 12.5px; color: #c0392b; margin-bottom: 12px; background: #fdeaea; padding: 9px 12px; border-radius: 7px; }
+
+/* ── Right panels ── */
+.metaList { display: flex; flex-direction: column; gap: 10px; margin-top: 12px; }
+.metaRow { display: flex; justify-content: space-between; font-size: 13px; padding-bottom: 10px; border-bottom: 1px solid #f5f4f1; }
+.metaRow:last-child { border-bottom: none; }
+.metaRow span { color: #888; }
+.metaRow strong { font-weight: 600; color: #111; }
+
+.ruleList { list-style: none; display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
+.ruleList li {
+  display: flex; align-items: flex-start; gap: 7px;
+  font-size: 12.5px; color: #777; line-height: 1.5;
+}
+.ruleList li::before { content: '·'; color: #1b4d5c; font-weight: 700; flex-shrink: 0; margin-top: -1px; }
+
+.helpText { font-size: 13px; color: #888; line-height: 1.55; margin-top: 8px; margin-bottom: 10px; }
+.supportLink { font-size: 13px; color: #1b4d5c; font-weight: 600; text-decoration: underline; text-underline-offset: 2px; }
+
+@media (max-width: 900px) { .layout { grid-template-columns: 1fr; } .twoField { grid-template-columns: 1fr; } }

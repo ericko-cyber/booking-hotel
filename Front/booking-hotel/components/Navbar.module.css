@@ -1,0 +1,75 @@
+.nav {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  z-index: 200;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  padding: 0 32px;
+  background: rgba(255,255,255,0.97);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid rgba(0,0,0,0.08);
+  gap: 40px;
+}
+
+.logo {
+  font-family: var(--serif);
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--text-dark);
+  white-space: nowrap;
+}
+
+.links {
+  display: flex;
+  gap: 28px;
+  flex: 1;
+}
+
+.link {
+  font-size: 15.5px;
+  font-weight: 400;
+  color: var(--text-mid);
+  letter-spacing: 0.01em;
+  transition: color 0.15s;
+}
+.link:hover { color: var(--text-dark); }
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 28px;
+  margin-left: auto;
+}
+
+.iconBtn {
+  width: 34px;
+  height: 34px;
+  background: none;
+  border: none;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-mid);
+  transition: background 0.15s;
+}
+.iconBtn:hover { background: var(--off-white); }
+
+.inquiryBtn {
+  height: 34px;
+  padding: 0 18px;
+  background: var(--teal-btn);
+  color: #fff;
+  border-radius: var(--r-sm);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  transition: background 0.15s;
+}
+.inquiryBtn:hover { background: var(--teal-dark); }
+
+@media (max-width: 860px) {
+  .links { display: none; }
+}

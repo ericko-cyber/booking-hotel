@@ -1,0 +1,237 @@
+/* ---- Page Hero ---- */
+.pageHero {
+  background: var(--teal);
+  padding: 120px 40px 56px;
+  position: relative;
+  overflow: hidden;
+}
+
+.pageHero::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.04'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+  pointer-events: none;
+}
+
+.pageHero::after {
+  content: '';
+  position: absolute;
+  right: -60px;
+  bottom: -60px;
+  width: 360px;
+  height: 360px;
+  background: radial-gradient(circle, rgba(196, 154, 60, 0.18) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+.heroInner {
+  max-width: 700px;
+  position: relative;
+  z-index: 1;
+}
+
+.eyebrow {
+  font-size: 0.65rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.6);
+  font-weight: 500;
+  margin-bottom: 12px;
+}
+
+.heroTitle {
+  font-family: var(--font-serif);
+  font-size: clamp(2.4rem, 5vw, 3.6rem);
+  font-weight: 300;
+  color: white;
+  line-height: 1.08;
+  margin-bottom: 14px;
+  letter-spacing: -0.01em;
+}
+
+.heroSubtitle {
+  font-size: 0.88rem;
+  color: rgba(255, 255, 255, 0.65);
+  line-height: 1.65;
+  margin-bottom: 28px;
+}
+
+.heroSubtitle strong {
+  color: var(--gold-light);
+  font-weight: 500;
+}
+
+/* Search in hero */
+.heroSearch {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 8px;
+  padding: 12px 18px;
+  max-width: 520px;
+  transition: background 0.2s;
+}
+
+.heroSearch:focus-within {
+  background: rgba(255, 255, 255, 0.18);
+}
+
+.heroSearch svg {
+  color: rgba(255, 255, 255, 0.55);
+  flex-shrink: 0;
+}
+
+.heroSearch input {
+  background: none;
+  border: none;
+  outline: none;
+  font-family: var(--font-sans);
+  font-size: 0.88rem;
+  color: white;
+  width: 100%;
+}
+
+.heroSearch input::placeholder {
+  color: rgba(255, 255, 255, 0.4);
+}
+
+/* ---- Layout ---- */
+.layout {
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  gap: 32px;
+  max-width: 1240px;
+  margin: 0 auto;
+  padding: 40px 40px 80px;
+  align-items: start;
+}
+
+/* ---- Sidebar ---- */
+.sidebar {
+  /* sticky handled inside HotelFilters */
+}
+
+/* ---- Main ---- */
+.main {
+  min-width: 0;
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 24px;
+}
+
+.resultCount {
+  font-size: 0.84rem;
+  color: var(--gray);
+}
+
+.resultCount strong {
+  color: var(--dark);
+  font-weight: 600;
+}
+
+.sortRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.sortRow label {
+  font-size: 0.75rem;
+  color: var(--gray);
+  font-weight: 500;
+}
+
+.sortSelect {
+  border: 1.5px solid rgba(0, 0, 0, 0.1);
+  border-radius: 7px;
+  padding: 7px 12px;
+  font-family: var(--font-sans);
+  font-size: 0.8rem;
+  color: var(--dark);
+  outline: none;
+  background: white;
+  cursor: pointer;
+  transition: border-color 0.2s;
+}
+
+.sortSelect:focus {
+  border-color: var(--teal);
+}
+
+/* ---- Grid ---- */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 24px;
+}
+
+/* ---- Empty State ---- */
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  padding: 80px 20px;
+  text-align: center;
+}
+
+.empty p {
+  font-size: 0.9rem;
+  color: var(--gray);
+}
+
+.resetBtn {
+  background: var(--teal);
+  color: white;
+  border: none;
+  padding: 11px 24px;
+  border-radius: 8px;
+  font-family: var(--font-sans);
+  font-size: 0.82rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.resetBtn:hover {
+  background: var(--teal-light);
+}
+
+/* ---- Responsive ---- */
+@media (max-width: 900px) {
+  .layout {
+    grid-template-columns: 1fr;
+    padding: 24px 20px 60px;
+  }
+
+  .sidebar {
+    order: 2;
+  }
+
+  .main {
+    order: 1;
+  }
+
+  .pageHero {
+    padding: 100px 20px 40px;
+  }
+}
+
+@media (max-width: 560px) {
+  .grid {
+    grid-template-columns: 1fr;
+  }
+
+  .toolbar {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+}

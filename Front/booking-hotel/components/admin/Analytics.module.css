@@ -1,0 +1,284 @@
+/* ── KPI grid ── */
+.kpiGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+  margin-bottom: 18px;
+}
+
+/* ── Period switch ── */
+.periodSwitch {
+  display: flex;
+  background: #fff;
+  border: 1.5px solid #e8e4de;
+  border-radius: 8px;
+  overflow: hidden;
+}
+.pBtn {
+  height: 36px;
+  padding: 0 16px;
+  background: none;
+  border: none;
+  border-right: 1px solid #e8e4de;
+  font-family: var(--sans);
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #888;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+  white-space: nowrap;
+}
+.pBtn:last-child { border-right: none; }
+.pBtn:hover { background: #f5f3ef; color: #333; }
+.pBtnOn { background: #0a1628 !important; color: #fff !important; }
+
+/* ── Main chart card ── */
+.mainChartCard { margin-bottom: 16px; }
+
+.chartHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 20px;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+.chartTitle { font-family: var(--serif); font-size: 16px; font-weight: 700; color: #111; }
+.chartSub   { font-size: 12px; color: #aaa; margin-top: 3px; }
+
+.chartModeTabs {
+  display: flex;
+  background: #f5f3ef;
+  border-radius: 8px;
+  padding: 3px;
+  gap: 2px;
+}
+.modeTab {
+  height: 30px;
+  padding: 0 14px;
+  background: none;
+  border: none;
+  border-radius: 6px;
+  font-family: var(--sans);
+  font-size: 12px;
+  font-weight: 600;
+  color: #888;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+  white-space: nowrap;
+}
+.modeTab:hover { color: #333; }
+.modeTabOn { background: #fff; color: #0a1628; box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
+
+/* Chart area */
+.chartArea {
+  display: flex;
+  align-items: flex-end;
+  gap: 6px;
+  height: 180px;
+  margin-bottom: 16px;
+  padding-bottom: 4px;
+}
+.chartCol {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  height: 100%;
+  position: relative;
+}
+.chartCol:hover .barTooltip { opacity: 1; transform: translateY(0); }
+
+.barTooltip {
+  position: absolute;
+  top: -28px;
+  left: 50%;
+  transform: translateX(-50%) translateY(4px);
+  background: #0a1628;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 3px 7px;
+  border-radius: 5px;
+  white-space: nowrap;
+  opacity: 0;
+  transition: opacity 0.15s, transform 0.15s;
+  pointer-events: none;
+  z-index: 10;
+}
+.barTooltip::after {
+  content: '';
+  position: absolute;
+  bottom: -4px;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 4px solid transparent;
+  border-top-color: #0a1628;
+  border-bottom: none;
+}
+
+.barTrack {
+  flex: 1;
+  width: 100%;
+  display: flex;
+  align-items: flex-end;
+}
+.barFill {
+  width: 100%;
+  border-radius: 4px 4px 2px 2px;
+  min-height: 4px;
+  transition: height 0.4s ease, opacity 0.15s;
+}
+.barFill:hover { opacity: 0.8; }
+
+.bar_revenue  { background: linear-gradient(180deg, #1b4d5c, #0a1628); }
+.bar_bookings { background: linear-gradient(180deg, #c49a3c, #8a6020); }
+.bar_users    { background: linear-gradient(180deg, #6a2aaa, #4a1a7a); }
+
+.colLabel { font-size: 9.5px; color: #bbb; font-weight: 500; }
+
+/* Chart summary */
+.chartSummary {
+  display: flex;
+  gap: 0;
+  border-top: 1.5px solid #f5f3ef;
+  padding-top: 14px;
+}
+.chartSumItem {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 0 16px;
+  border-right: 1px solid #f5f3ef;
+}
+.chartSumItem:first-child { padding-left: 0; }
+.chartSumItem:last-child  { padding-right: 0; border-right: none; }
+.chartSumItem span { font-size: 11px; color: #aaa; font-weight: 500; }
+.chartSumItem strong { font-family: var(--serif); font-size: 18px; font-weight: 700; color: #111; }
+
+/* ── 3-column row ── */
+.threeCol {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+  margin-bottom: 16px;
+}
+
+/* Donut */
+.donutWrap { display: flex; align-items: center; gap: 14px; }
+.donutLegend { flex: 1; display: flex; flex-direction: column; gap: 9px; }
+.legendRow { display: flex; align-items: center; gap: 7px; font-size: 12.5px; }
+.legendDot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+.legendLabel { flex: 1; color: #666; }
+.legendRow strong { font-weight: 700; color: #111; }
+.legendPct { font-size: 11px; color: #bbb; font-weight: 600; width: 28px; text-align: right; }
+
+/* Membership breakdown */
+.memberBreakdown { display: flex; flex-direction: column; gap: 12px; }
+.memberRow { display: flex; flex-direction: column; gap: 5px; }
+.memberRowTop { display: flex; align-items: center; justify-content: space-between; }
+.memberName { display: flex; align-items: center; gap: 7px; }
+.memberDot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+.memberName strong { font-size: 13px; font-weight: 700; color: #111; }
+.memberCount { font-size: 13px; font-weight: 700; color: #111; }
+.memberBar { height: 5px; background: #f0eee9; border-radius: 3px; overflow: hidden; }
+.memberBarFill { height: 100%; border-radius: 3px; transition: width 0.4s ease; }
+.memberPct { font-size: 11px; color: #aaa; text-align: right; }
+
+/* ── Hotel performance table ── */
+.hotelPerfCard { margin-bottom: 16px; }
+.perfTableWrap { overflow-x: auto; }
+.perfTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  margin-top: 4px;
+}
+.perfTable th {
+  padding: 10px 12px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #bbb;
+  text-align: left;
+  border-bottom: 1.5px solid #f0eee9;
+  white-space: nowrap;
+}
+.perfTable td { padding: 13px 12px; border-bottom: 1px solid #f9f8f6; vertical-align: middle; }
+.perfTable tbody tr:last-child td { border-bottom: none; }
+.perfTable tbody tr { transition: background 0.1s; }
+.perfTable tbody tr:hover { background: #faf9f6; }
+
+.tdRank { text-align: center; }
+.rankBadge {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 28px; height: 28px; border-radius: 6px;
+  font-size: 11px; font-weight: 800;
+  background: #f0eee9; color: #888;
+}
+.rankGold   { background: #fdf3d0; color: #8a6010; }
+.rankSilver { background: #f0f0f0; color: #5a5a5a; }
+.rankBronze { background: #f5ebe0; color: #7a4a20; }
+
+.hotelNameCell { display: flex; align-items: center; gap: 10px; }
+.hotelThumb { width: 40px; height: 32px; border-radius: 6px; flex-shrink: 0; }
+.hotelName { font-weight: 700; color: #111; font-size: 13px; white-space: nowrap; }
+.hotelAddr { font-size: 11px; color: #aaa; margin-top: 1px; }
+
+.tdMuted { color: #888; white-space: nowrap; }
+.tdCenter { text-align: center; }
+.tdPrice { font-family: var(--serif); font-size: 15px; font-weight: 700; color: #111; white-space: nowrap; }
+
+.convBadge { font-size: 11.5px; font-weight: 700; padding: 3px 9px; border-radius: 20px; }
+.convHigh { background: #e8f5ed; color: #1e7a3a; }
+.convMid  { background: #fdf3e0; color: #b07d1a; }
+.convLow  { background: #fdeaea; color: #c0392b; }
+
+.shareCell { display: flex; align-items: center; gap: 8px; }
+.shareTrack { width: 90px; height: 5px; background: #f0eee9; border-radius: 3px; overflow: hidden; }
+.shareFill { height: 100%; background: #1b4d5c; border-radius: 3px; }
+.shareCell span { font-size: 12px; font-weight: 600; color: #555; white-space: nowrap; }
+
+/* ── Bottom row ── */
+.bottomRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+/* Top guests */
+.guestList { display: flex; flex-direction: column; gap: 11px; }
+.guestRow { display: flex; align-items: center; gap: 10px; }
+.guestRank { width: 16px; font-size: 11px; font-weight: 700; color: #ccc; text-align: right; flex-shrink: 0; }
+.guestAvt { width: 30px; height: 30px; border-radius: 50%; color: #fff; font-size: 12px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.guestInfo { flex: 1; }
+.guestName { font-size: 13px; font-weight: 600; color: #111; }
+.guestMeta { font-size: 11px; color: #aaa; }
+.guestSpend { font-family: var(--serif); font-size: 15px; font-weight: 700; color: #111; white-space: nowrap; }
+
+/* Platform health */
+.healthList { display: flex; flex-direction: column; gap: 14px; }
+.healthRow { display: flex; align-items: center; gap: 12px; }
+.healthIcon { width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.healthInfo { flex: 1; }
+.healthLabel { font-size: 12.5px; font-weight: 600; color: #555; margin-bottom: 5px; }
+.healthBar { height: 5px; background: #f0eee9; border-radius: 3px; overflow: hidden; }
+.healthBarFill { height: 100%; border-radius: 3px; transition: width 0.4s ease; }
+.healthPct { font-size: 13.5px; font-weight: 800; width: 38px; text-align: right; flex-shrink: 0; }
+
+/* ── Responsive ── */
+@media (max-width: 1200px) { .threeCol { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 1000px) { .kpiGrid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 800px) {
+  .threeCol { grid-template-columns: 1fr; }
+  .bottomRow { grid-template-columns: 1fr; }
+  .chartArea { height: 130px; }
+}
+@media (max-width: 600px) {
+  .kpiGrid { grid-template-columns: 1fr 1fr; }
+  .chartSummary { flex-direction: column; gap: 10px; }
+  .chartSumItem { border-right: none; padding: 0; }
+}

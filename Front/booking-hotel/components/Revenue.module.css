@@ -1,0 +1,44 @@
+.statsRow { display: grid; grid-template-columns: repeat(4,1fr); gap: 14px; margin-bottom: 18px; }
+.twoCol { display: grid; grid-template-columns: 1fr 300px; gap: 16px; }
+.rightCol { display: flex; flex-direction: column; gap: 14px; }
+
+.chartTop { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 20px; gap: 12px; flex-wrap: wrap; }
+.chartLabel { font-size: 11px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: #999; margin-bottom: 4px; }
+.chartValue { font-family: var(--serif); font-size: 26px; font-weight: 700; color: #111; }
+
+.periodSwitch { display: flex; gap: 4px; flex-wrap: wrap; }
+.pBtn { height: 28px; padding: 0 10px; background: #f5f4f1; border: 1.5px solid transparent; border-radius: 6px; font-family: var(--sans); font-size: 11.5px; font-weight: 500; color: #888; cursor: pointer; transition: all 0.15s; }
+.pBtn:hover { color: #1b4d5c; }
+.pBtnOn { background: #1b4d5c; color: #fff !important; }
+
+.chartArea { display: flex; align-items: flex-end; gap: 5px; height: 160px; margin-bottom: 8px; }
+.col { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; height: 100%; transition: opacity 0.2s; }
+.colFade { opacity: 0.2; }
+.colVal { font-size: 8.5px; color: #bbb; white-space: nowrap; }
+.barTrack { flex: 1; width: 100%; display: flex; align-items: flex-end; }
+.barFill { width: 100%; background: #1b4d5c; border-radius: 4px 4px 2px 2px; min-height: 4px; transition: opacity 0.15s; }
+.barFill:hover { opacity: 0.75; }
+.colMonth { font-size: 9px; color: #bbb; font-weight: 500; }
+.colBookings { font-size: 9px; color: #c49a3c; font-weight: 700; }
+.chartNote { font-size: 11px; color: #ccc; text-align: center; }
+
+.cardTitle { font-family: var(--serif); font-size: 15px; font-weight: 600; color: #111; margin-bottom: 14px; }
+
+.propList { display: flex; flex-direction: column; gap: 14px; }
+.propItem { display: flex; align-items: flex-start; gap: 10px; }
+.propRank { width: 22px; height: 22px; background: #f0eee9; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; color: #888; flex-shrink: 0; margin-top: 2px; }
+.propInfo { flex: 1; min-width: 0; }
+.propName { font-size: 12.5px; font-weight: 600; color: #111; margin-bottom: 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.propBar { height: 5px; background: #f0eee9; border-radius: 3px; overflow: hidden; margin-bottom: 4px; }
+.propBarFill { height: 100%; background: #1b4d5c; border-radius: 3px; }
+.propMeta { font-size: 11px; color: #aaa; }
+.propRev { font-family: var(--serif); font-size: 16px; font-weight: 700; color: #111; white-space: nowrap; flex-shrink: 0; }
+
+.donutArea { display: flex; align-items: center; gap: 16px; }
+.donutRing { flex-shrink: 0; }
+.donutLegend { display: flex; flex-direction: column; gap: 8px; flex: 1; }
+.legendItem { display: flex; align-items: center; gap: 7px; font-size: 12.5px; color: #555; }
+.legendDot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+.legendItem strong { margin-left: auto; font-weight: 700; color: #111; }
+
+@media (max-width: 1100px) { .statsRow { grid-template-columns: repeat(2,1fr); } .twoCol { grid-template-columns: 1fr; } }

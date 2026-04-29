@@ -1,0 +1,332 @@
+/* ── Shell ── */
+.shell {
+  display: flex;
+  min-height: 100vh;
+  background: #f2f1ee;
+  font-family: var(--sans);
+}
+
+/* ── Sidebar ── */
+.sidebar {
+  width: 248px;
+  min-height: 100vh;
+  background: #0a1628;
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  transition: width 0.22s ease;
+  position: relative;
+  z-index: 50;
+}
+.collapsed .sidebar { width: 64px; }
+
+/* ── Brand ── */
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 18px 14px 14px;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+  min-height: 64px;
+}
+
+.brandMark {
+  width: 32px;
+  height: 32px;
+  background: linear-gradient(135deg, #1b4d5c, #c49a3c);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  flex-shrink: 0;
+}
+
+.brandText { flex: 1; min-width: 0; overflow: hidden; }
+.brandName {
+  display: block;
+  font-family: var(--serif);
+  font-size: 13px;
+  font-weight: 700;
+  color: #fff;
+  white-space: nowrap;
+}
+.brandSub {
+  display: block;
+  font-size: 9.5px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #c49a3c;
+  margin-top: 2px;
+}
+
+.collapseBtn {
+  width: 24px; height: 24px;
+  background: rgba(255,255,255,0.06);
+  border: none; border-radius: 6px;
+  color: rgba(255,255,255,0.35);
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; flex-shrink: 0;
+  transition: background 0.15s, color 0.15s;
+}
+.collapseBtn:hover { background: rgba(255,255,255,0.12); color: #fff; }
+
+/* ── Admin badge ── */
+.adminBadge {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 10px 12px;
+  padding: 10px 12px;
+  background: linear-gradient(135deg, rgba(196,154,60,0.12), rgba(27,77,92,0.2));
+  border: 1px solid rgba(196,154,60,0.2);
+  border-radius: 10px;
+}
+.adminAvatar {
+  width: 32px; height: 32px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #1b4d5c, #c49a3c);
+  display: flex; align-items: center; justify-content: center;
+  color: #fff; flex-shrink: 0;
+}
+.adminName { font-size: 12px; font-weight: 700; color: #fff; line-height: 1.3; }
+.adminEmail { font-size: 10px; color: rgba(255,255,255,0.35); margin-top: 1px; }
+
+/* ── Nav ── */
+.nav {
+  flex: 1;
+  padding: 8px 10px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.nav::-webkit-scrollbar { width: 3px; }
+.nav::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); }
+
+.navGroup { margin-bottom: 6px; }
+.groupLabel {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.25);
+  padding: 8px 10px 4px;
+  display: block;
+}
+
+.navItem {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 10px;
+  border-radius: 8px;
+  color: rgba(255,255,255,0.45);
+  text-decoration: none;
+  font-size: 13px;
+  font-weight: 500;
+  transition: background 0.15s, color 0.15s;
+  position: relative;
+  white-space: nowrap;
+}
+.navItem:hover { background: rgba(255,255,255,0.06); color: rgba(255,255,255,0.85); }
+.navActive {
+  background: rgba(196,154,60,0.12) !important;
+  color: #c49a3c !important;
+}
+
+.navIcon { display: flex; align-items: center; flex-shrink: 0; }
+.navLabel { flex: 1; }
+.activeBar {
+  position: absolute;
+  right: 0; top: 50%;
+  transform: translateY(-50%);
+  width: 3px; height: 20px;
+  background: #c49a3c;
+  border-radius: 2px 0 0 2px;
+}
+
+.collapsed .navItem { justify-content: center; padding: 9px; }
+
+/* ── Bottom ── */
+.sidebarBottom {
+  padding: 10px;
+  border-top: 1px solid rgba(255,255,255,0.06);
+}
+.backLink {
+  display: flex; align-items: center; gap: 8px;
+  padding: 9px 10px; border-radius: 8px;
+  color: rgba(255,255,255,0.3); font-size: 12.5px;
+  transition: background 0.15s, color 0.15s;
+  text-decoration: none;
+}
+.backLink:hover { background: rgba(255,255,255,0.06); color: rgba(255,255,255,0.65); }
+.collapsed .backLink { justify-content: center; }
+
+/* ── Main ── */
+.main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+
+/* ── Topbar ── */
+.topbar {
+  height: 58px;
+  background: #fff;
+  border-bottom: 1px solid #e8e4de;
+  display: flex;
+  align-items: center;
+  padding: 0 28px;
+  gap: 14px;
+  flex-shrink: 0;
+}
+
+.mobileBtn { display: none; background: none; border: none; color: #666; cursor: pointer; }
+
+.topbarBreadcrumb { display: flex; align-items: center; gap: 8px; flex: 1; }
+.topbarPortal { font-size: 12px; color: #bbb; font-weight: 500; }
+.topbarPage { font-size: 13px; font-weight: 700; color: #111; }
+
+.topbarRight { display: flex; align-items: center; gap: 10px; }
+
+.systemStatus {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #1e7a3a;
+  background: #e8f5ed;
+  padding: 5px 12px;
+  border-radius: 20px;
+}
+.statusDot { width: 7px; height: 7px; background: #1e7a3a; border-radius: 50%; }
+
+.notifBtn {
+  position: relative;
+  width: 36px; height: 36px;
+  background: #f5f4f1; border: none; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  color: #666; cursor: pointer;
+  transition: background 0.15s;
+}
+.notifBtn:hover { background: #eae8e3; }
+.notifBadge {
+  position: absolute; top: 5px; right: 5px;
+  width: 16px; height: 16px;
+  background: #e05a5a; border-radius: 50%;
+  font-size: 9px; font-weight: 700; color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  border: 1.5px solid #fff;
+}
+
+/* ── Content ── */
+.content {
+  flex: 1;
+  padding: 28px 32px;
+  overflow-y: auto;
+}
+
+/* ── Overlay ── */
+.overlay {
+  display: none;
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.6); z-index: 49;
+}
+
+/* ── Profile Dropdown ── */
+.profileDropdown { position: relative; }
+
+.adminAvtSmall {
+  width: 34px; height: 34px; border-radius: 50%;
+  background: linear-gradient(135deg, #0a1628, #1b4d5c);
+  color: #c49a3c; font-size: 13px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; border: none;
+  transition: background 0.15s;
+}
+.adminAvtSmall:hover { background: linear-gradient(135deg, #0d1d33, #1f5566); }
+
+.dropdownMenu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 6px;
+  width: 240px;
+  background: #fff;
+  border: 1px solid #e8e4de;
+  border-radius: 12px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+  z-index: 100;
+  animation: dropdownSlideIn 0.2s ease;
+}
+
+@keyframes dropdownSlideIn {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.dropdownHeader {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border-bottom: 1px solid #f0ede8;
+}
+
+.dropdownAvatar {
+  width: 40px; height: 40px; border-radius: 50%;
+  background: linear-gradient(135deg, #0a1628, #1b4d5c);
+  color: #c49a3c; font-size: 14px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+
+.dropdownName {
+  font-size: 13px; font-weight: 700;
+  color: #111; margin: 0;
+}
+.dropdownEmail {
+  font-size: 11px; color: #999;
+  margin: 2px 0 0;
+}
+
+.dropdownDivider {
+  height: 1px; background: #f0ede8;
+  margin: 0;
+}
+
+.dropdownItem {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 14px;
+  background: none;
+  border: none;
+  color: #d64545;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s;
+  text-align: left;
+}
+.dropdownItem:hover { background: #fafaf9; }
+.dropdownItem svg { stroke-width: 2; }
+
+@media (max-width: 768px) {
+  .sidebar {
+    position: fixed; top: 0; left: 0; bottom: 0;
+    transform: translateX(-100%);
+    transition: transform 0.25s ease;
+    width: 248px !important; z-index: 50;
+  }
+  .open { transform: translateX(0) !important; }
+  .mobileBtn { display: flex; }
+  .overlay { display: block; }
+  .content { padding: 20px 16px; }
+  .collapseBtn { display: none; }
+  .systemStatus { display: none; }
+  .dropdownMenu {
+    right: -10px;
+    width: 200px;
+  }
+}

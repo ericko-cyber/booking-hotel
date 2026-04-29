@@ -1,0 +1,380 @@
+ .panel {
+  background: #fff;
+  border: 1.5px solid #e8e6e2;
+  border-radius: 16px;
+  padding: 28px 24px;
+  position: sticky;
+  top: 76px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  box-shadow: 0 4px 32px rgba(0,0,0,0.08);
+}
+
+/* ── Price header ── */
+.panelHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.priceDisplay {
+  display: flex;
+  align-items: baseline;
+  gap: 3px;
+}
+
+.from {
+  font-size: 11px;
+  color: #999;
+  margin-right: 2px;
+}
+
+.priceNum {
+  display: flex;
+  align-items: flex-start;
+  gap: 1px;
+}
+.priceNum span {
+  font-size: 14px;
+  color: #666;
+  line-height: 2.2;
+}
+.priceNum strong {
+  font-family: var(--serif);
+  font-size: 32px;
+  font-weight: 600;
+  color: var(--text-dark);
+  line-height: 1;
+}
+.perNight {
+  font-size: 12px;
+  color: #999;
+  margin-left: 2px;
+}
+
+.saveBtn {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: #f5f4f2;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #aaa;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+  flex-shrink: 0;
+}
+.saveBtn:hover { background: #ede9e3; }
+.saveBtnActive { background: #fff0f0 !important; }
+
+/* ── Dates ── */
+.dateRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 1.5px solid #e2e0dd;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.dateField {
+  flex: 1;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.dateField:first-child {
+  border-right: 1px solid #e2e0dd;
+}
+
+.dateField label {
+  font-size: 9.5px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-dark);
+}
+
+.dateField input[type='date'] {
+  border: none;
+  outline: none;
+  font-family: var(--sans);
+  font-size: 12.5px;
+  color: var(--text-mid);
+  background: transparent;
+  width: 100%;
+  cursor: pointer;
+}
+
+.dateSep {
+  flex-shrink: 0;
+  padding: 0 2px;
+  display: flex;
+  align-items: center;
+}
+
+.nightsSummary {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: #888;
+  background: #f9f8f6;
+  border-radius: 6px;
+  padding: 8px 12px;
+  margin-top: -6px;
+}
+
+/* ── Guests ── */
+.guestRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 2px 0;
+}
+.guestRow label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-dark);
+}
+
+.guestStepper {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  border: 1.5px solid #e2e0dd;
+  border-radius: 8px;
+  overflow: hidden;
+}
+.guestStepper button {
+  width: 34px;
+  height: 34px;
+  background: #f5f4f2;
+  border: none;
+  font-size: 18px;
+  font-weight: 300;
+  color: var(--text-mid);
+  cursor: pointer;
+  transition: background 0.15s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.guestStepper button:hover { background: #ede9e3; }
+.guestStepper span {
+  width: 36px;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-dark);
+}
+
+/* ── Room selector ── */
+.roomSelect {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.roomSelect label {
+  font-size: 9.5px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-dark);
+}
+.roomSelect select {
+  width: 100%;
+  height: 42px;
+  border: 1.5px solid #e2e0dd;
+  border-radius: 8px;
+  padding: 0 12px;
+  font-family: var(--sans);
+  font-size: 13px;
+  color: var(--text-mid);
+  background: #fff;
+  outline: none;
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+.roomSelect select:focus { border-color: var(--teal-btn); }
+
+/* ── Price breakdown ── */
+.breakdown {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px 0;
+  border-top: 1px solid #f0eee9;
+  border-bottom: 1px solid #f0eee9;
+}
+.breakdownRow {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12.5px;
+  color: #777;
+}
+.discountRow { color: #2a7a2a; font-weight: 500; }
+.totalRow {
+  margin-top: 4px;
+  font-size: 14px;
+  color: var(--text-dark);
+}
+.totalRow strong { font-weight: 600; }
+
+/* ── Voucher ── */
+.voucherBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.voucherBlock label {
+  font-size: 9.5px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-dark);
+}
+.voucherInput {
+  display: flex;
+  gap: 0;
+}
+.voucherInput input {
+  flex: 1;
+  height: 40px;
+  border: 1.5px solid #e2e0dd;
+  border-right: none;
+  border-radius: 6px 0 0 6px;
+  padding: 0 12px;
+  font-family: var(--sans);
+  font-size: 12.5px;
+  color: var(--text-dark);
+  outline: none;
+  transition: border-color 0.15s;
+  text-transform: uppercase;
+}
+.voucherInput input::placeholder { text-transform: none; color: #bbb; font-size: 12px; }
+.voucherInput input:focus { border-color: var(--teal-btn); }
+.voucherInputErr { border-color: #c0392b !important; }
+.voucherInputOk { border-color: #27ae60 !important; }
+.voucherInput button {
+  height: 40px;
+  padding: 0 14px;
+  background: var(--teal-btn);
+  color: #fff;
+  border: none;
+  border-radius: 0 6px 6px 0;
+  font-family: var(--sans);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+  white-space: nowrap;
+}
+.voucherInput button:hover { background: var(--teal-dark); }
+.voucherOk { font-size: 11.5px; color: #27ae60; font-weight: 500; }
+.voucherErrMsg { font-size: 11.5px; color: #c0392b; }
+.viewVoucherLink {
+  background: none;
+  border: none;
+  font-family: var(--sans);
+  font-size: 11.5px;
+  color: var(--teal-btn);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+  text-align: left;
+  padding: 0;
+}
+
+/* ── Book button ── */
+.bookBtn {
+  width: 100%;
+  height: 50px;
+  background: var(--teal-btn);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-family: var(--sans);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background 0.18s;
+}
+.bookBtn:hover { background: var(--teal-dark); }
+
+/* ── Member note ── */
+.memberNote {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 11.5px;
+  color: #999;
+  line-height: 1.55;
+}
+.memberNote svg { flex-shrink: 0; margin-top: 1px; color: #c49a3c; }
+.memberNote a { color: var(--teal-btn); text-decoration: underline; text-underline-offset: 2px; font-weight: 500; }
+
+/* ── Booking success ── */
+.bookingSuccess {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 14px;
+  padding: 8px 0;
+}
+.successIcon {
+  width: 60px;
+  height: 60px;
+  background: var(--teal-btn);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.bookingSuccess h3 {
+  font-family: var(--serif);
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--text-dark);
+}
+.bookingSuccess p {
+  font-size: 13px;
+  color: #777;
+  line-height: 1.6;
+}
+.confirmDetails {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: #f9f8f6;
+  border-radius: 8px;
+  padding: 14px 16px;
+}
+.confirmDetails div {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12.5px;
+}
+.confirmDetails span { color: #999; }
+.confirmDetails strong { color: var(--text-dark); font-weight: 600; }
+.newBookingBtn {
+  width: 100%;
+  height: 44px;
+  background: transparent;
+  border: 1.5px solid var(--teal-btn);
+  color: var(--teal-btn);
+  border-radius: 8px;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.newBookingBtn:hover { background: var(--teal-btn); color: #fff; }

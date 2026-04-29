@@ -1,0 +1,167 @@
+.statsGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.twoCol {
+  display: grid;
+  grid-template-columns: 1fr 340px;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+/* ── Chart ── */
+.chartHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+.chartLabel {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #999;
+  margin-bottom: 4px;
+}
+.chartTotal {
+  font-family: var(--serif);
+  font-size: 26px;
+  font-weight: 700;
+  color: #111;
+}
+.chartYear {
+  font-size: 12px;
+  background: #f5f4f1;
+  color: #777;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-weight: 500;
+}
+
+.barChart {
+  display: flex;
+  align-items: flex-end;
+  gap: 6px;
+  height: 140px;
+}
+.barCol {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  height: 100%;
+}
+.barWrap {
+  flex: 1;
+  width: 100%;
+  display: flex;
+  align-items: flex-end;
+}
+.bar {
+  width: 100%;
+  background: #1b4d5c;
+  border-radius: 4px 4px 2px 2px;
+  min-height: 4px;
+  transition: opacity 0.15s;
+}
+.bar:hover { opacity: 0.75; }
+.barMonth {
+  font-size: 9.5px;
+  color: #bbb;
+  font-weight: 500;
+}
+
+/* ── Card shared ── */
+.cardTitleRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+.cardTitle {
+  font-family: var(--serif);
+  font-size: 16px;
+  font-weight: 600;
+  color: #111;
+}
+.cardLink {
+  font-size: 12px;
+  color: #1b4d5c;
+  font-weight: 500;
+  transition: opacity 0.15s;
+}
+.cardLink:hover { opacity: 0.7; }
+
+/* ── Hotel list ── */
+.hotelList { display: flex; flex-direction: column; gap: 12px; }
+.hotelRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px;
+  border-radius: 8px;
+  border: 1px solid #f0eee9;
+  transition: background 0.12s;
+}
+.hotelRow:hover { background: #fafaf8; }
+.hotelThumb {
+  width: 44px;
+  height: 36px;
+  border-radius: 6px;
+  flex-shrink: 0;
+}
+.hotelInfo { flex: 1; min-width: 0; }
+.hotelName {
+  font-size: 13px;
+  font-weight: 600;
+  color: #111;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.hotelRooms { font-size: 11px; color: #aaa; margin-top: 1px; }
+
+/* ── Recent bookings table ── */
+.recentCard { margin-bottom: 0; }
+
+.tableWrap { overflow-x: auto; margin-top: 4px; }
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.table th {
+  padding: 9px 12px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #aaa;
+  text-align: left;
+  border-bottom: 1.5px solid #f0eee9;
+  white-space: nowrap;
+}
+.table td {
+  padding: 12px 12px;
+  border-bottom: 1px solid #f9f8f6;
+  color: #333;
+  vertical-align: middle;
+}
+.table tbody tr:last-child td { border-bottom: none; }
+.table tbody tr:hover { background: #fafaf8; }
+.tdMono { font-family: monospace; font-size: 12px; color: #888; }
+.tdMuted { color: #888; }
+.tdBold { font-weight: 600; color: #111; }
+
+@media (max-width: 1100px) {
+  .statsGrid { grid-template-columns: repeat(2, 1fr); }
+  .twoCol { grid-template-columns: 1fr; }
+}
+@media (max-width: 640px) {
+  .statsGrid { grid-template-columns: 1fr 1fr; }
+}

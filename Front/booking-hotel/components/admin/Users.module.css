@@ -1,0 +1,216 @@
+.toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+}
+
+.roleTabs {
+    display: flex;
+    gap: 4px;
+}
+
+.rTab {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    height: 34px;
+    padding: 0 13px;
+    background: #fff;
+    border: 1.5px solid #e8e4de;
+    border-radius: 7px;
+    font-family: var(--sans);
+    font-size: 12.5px;
+    font-weight: 600;
+    color: #888;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.rTab span {
+    font-size: 10px;
+    background: #f0eee9;
+    color: #888;
+    padding: 1px 6px;
+    border-radius: 10px;
+}
+
+.rTab:hover {
+    border-color: #0a1628;
+    color: #0a1628;
+}
+
+.rTabOn {
+    background: #0a1628;
+    border-color: #0a1628;
+    color: #fff;
+}
+
+.rTabOn span {
+    background: rgba(255, 255, 255, 0.2);
+    color: #fff;
+}
+
+.tableWrap {
+    overflow-x: auto;
+    border-radius: 10px;
+    border: 1px solid #e8e4de;
+}
+
+.table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+    background: #fff;
+}
+
+.table thead tr {
+    background: #f9f8f6;
+    border-bottom: 1.5px solid #e8e4de;
+}
+
+.table th {
+    padding: 10px 14px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: #aaa;
+    text-align: left;
+    white-space: nowrap;
+}
+
+.table td {
+    padding: 12px 14px;
+    border-bottom: 1px solid #f5f3ef;
+    vertical-align: middle;
+}
+
+.table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.tr {
+    cursor: pointer;
+    transition: background 0.1s;
+}
+
+.tr:hover {
+    background: #faf9f6;
+}
+
+.tdId {
+    font-family: monospace;
+    font-size: 12px;
+    color: #ccc;
+}
+
+.nameCell {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+}
+
+.avatar {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    color: #c49a3c;
+    font-size: 12px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.name {
+    font-weight: 600;
+    color: #111;
+    white-space: nowrap;
+}
+
+.tdEmail {
+    color: #777;
+    font-size: 12.5px;
+}
+
+.tdCenter {
+    text-align: center;
+    color: #777;
+}
+
+.tdMuted {
+    color: #aaa;
+}
+
+.actions {
+    display: flex;
+    gap: 6px;
+}
+
+.detailContent {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.detailTop {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid #f0eee9;
+    margin-bottom: 12px;
+}
+
+.detailAvatar {
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    color: #c49a3c;
+    font-size: 18px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.detailName {
+    font-family: var(--serif);
+    font-size: 18px;
+    font-weight: 700;
+    color: #111;
+}
+
+.detailEmail {
+    font-size: 13px;
+    color: #888;
+    margin-top: 2px;
+}
+
+.detailBadges {
+    display: flex;
+    gap: 6px;
+    margin-top: 6px;
+}
+
+.detailRow {
+    display: flex;
+    justify-content: space-between;
+    font-size: 13px;
+    padding: 9px 0;
+    border-bottom: 1px solid #f9f8f6;
+}
+
+.detailRow span {
+    color: #888;
+}
+
+.detailRow strong {
+    font-weight: 600;
+    color: #111;
+}

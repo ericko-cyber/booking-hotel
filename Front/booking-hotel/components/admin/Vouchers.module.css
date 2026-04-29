@@ -1,0 +1,316 @@
+/* ── Stats row ── */
+.statsRow {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+  margin-bottom: 20px;
+}
+
+/* ── Toolbar ── */
+.toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+.filterGroup {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.segmented {
+  display: flex;
+  background: #fff;
+  border: 1.5px solid #e8e4de;
+  border-radius: 8px;
+  overflow: hidden;
+}
+.seg {
+  height: 36px;
+  padding: 0 14px;
+  background: none;
+  border: none;
+  border-right: 1px solid #e8e4de;
+  font-family: var(--sans);
+  font-size: 12.5px;
+  font-weight: 500;
+  color: #888;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+  white-space: nowrap;
+}
+.seg:last-child { border-right: none; }
+.seg:hover { background: #f5f3ef; color: #333; }
+.segOn {
+  background: #0a1628 !important;
+  color: #fff !important;
+}
+
+/* ── Voucher grid ── */
+.voucherGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 14px;
+}
+
+/* ── Voucher card ── */
+.vCard {
+  display: flex;
+  background: #fff;
+  border: 1.5px solid #e8e4de;
+  border-radius: 12px;
+  overflow: hidden;
+  transition: box-shadow 0.2s, transform 0.18s;
+}
+.vCard:hover {
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
+  transform: translateY(-2px);
+}
+.vCardDim { opacity: 0.5; }
+
+/* Left strip */
+.vStrip {
+  width: 76px;
+  min-height: 100%;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  padding: 16px 8px;
+}
+.vStripGlobal { background: linear-gradient(180deg, #0a1628, #1b4d5c); }
+.vStripHotel  { background: linear-gradient(180deg, #4a2070, #7a3a9a); }
+
+.vValue {
+  font-family: var(--serif);
+  font-size: 20px;
+  font-weight: 700;
+  color: #fff;
+  line-height: 1;
+}
+.vType {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+/* Content */
+.vContent {
+  flex: 1;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  min-width: 0;
+}
+
+.vTopRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.vCode {
+  font-family: 'Courier New', monospace;
+  font-size: 14px;
+  font-weight: 700;
+  color: #111;
+  letter-spacing: 0.06em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.vBadges {
+  display: flex;
+  gap: 5px;
+  flex-shrink: 0;
+}
+
+.vMeta {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.vHotel,
+.vExpiry {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11.5px;
+  color: #888;
+  white-space: nowrap;
+}
+
+/* Usage bar */
+.vUsageRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.vUsageBar {
+  flex: 1;
+  height: 5px;
+  background: #f0eee9;
+  border-radius: 3px;
+  overflow: hidden;
+}
+.vUsageFill {
+  height: 100%;
+  background: #1b4d5c;
+  border-radius: 3px;
+  transition: width 0.4s ease;
+}
+.vUsageFull { background: #c0392b; }
+.vUsageText {
+  font-size: 11px;
+  color: #aaa;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.vActions {
+  display: flex;
+  gap: 6px;
+  padding-top: 6px;
+  border-top: 1px solid #f5f3ef;
+}
+
+/* ── Modal ── */
+.modalGrid {
+  display: flex;
+  flex-direction: column;
+}
+
+.twoField {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.err {
+  display: block;
+  font-size: 11.5px;
+  color: #c0392b;
+  margin-top: 4px;
+}
+
+/* Scope cards */
+.scopeCards {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.scopeCard {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  background: #fff;
+  border: 1.5px solid #e2e0dd;
+  border-radius: 8px;
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.15s, background 0.15s;
+}
+.scopeCard:hover { border-color: #aaa; }
+.scopeCardOn {
+  border-color: #1b4d5c !important;
+  background: #f0f6f8 !important;
+}
+.scopeIcon {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  background: #f5f4f1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #888;
+  flex-shrink: 0;
+}
+.scopeCardOn .scopeIcon {
+  background: #1b4d5c;
+  color: #fff;
+}
+.scopeText {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.scopeText strong {
+  font-size: 13px;
+  font-weight: 700;
+  color: #111;
+}
+.scopeText span {
+  font-size: 11.5px;
+  color: #aaa;
+}
+
+/* Preview */
+.previewStrip {
+  display: flex;
+  align-items: center;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1.5px solid #e8e4de;
+  margin-bottom: 18px;
+  margin-top: 4px;
+}
+.previewLeft {
+  width: 72px;
+  padding: 14px 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  flex-shrink: 0;
+}
+.previewGlobal { background: linear-gradient(180deg, #0a1628, #1b4d5c); }
+.previewHotel  { background: linear-gradient(180deg, #4a2070, #7a3a9a); }
+.previewLeft span { color: #fff; }
+.previewLeft span:first-child { font-family: var(--serif); font-size: 18px; font-weight: 700; }
+.previewLeft span:last-child  { font-size: 9px; opacity: 0.6; letter-spacing: 0.1em; }
+.previewRight {
+  flex: 1;
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  background: #f9f8f6;
+}
+.previewRight code {
+  font-family: 'Courier New', monospace;
+  font-size: 15px;
+  font-weight: 700;
+  color: #111;
+  letter-spacing: 0.06em;
+}
+.previewRight span {
+  font-size: 12px;
+  color: #888;
+}
+
+.modalActions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+/* ── Responsive ── */
+@media (max-width: 1100px) { .statsRow { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 700px) {
+  .statsRow { grid-template-columns: 1fr 1fr; }
+  .voucherGrid { grid-template-columns: 1fr; }
+  .twoField { grid-template-columns: 1fr; }
+  .toolbar { flex-direction: column; align-items: flex-start; }
+}
