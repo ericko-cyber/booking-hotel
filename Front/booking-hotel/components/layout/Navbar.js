@@ -6,11 +6,19 @@ import { authService } from '../../services/authService'
 
 export default function Navbar({ onVoucherClick }) {
   const router = useRouter()
-  const authenticated = authService.isAuthenticated()
+  const [mounted, setMounted] = useState(false)
   const [currentUser, setCurrentUser] = useState(null)
   const [profileLoaded, setProfileLoaded] = useState(false)
 
   useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  const authenticated = mounted && authService.isAuthenticated()
+
+  useEffect(() => {
+    if (!mounted) return
+
     let active = true
 
     const syncProfile = async () => {
@@ -50,7 +58,7 @@ export default function Navbar({ onVoucherClick }) {
     return () => {
       active = false
     }
-  }, [authenticated, router.asPath])
+  }, [authenticated, mounted, router.asPath])
 
   const membershipTier = profileLoaded ? (currentUser?.membership_tier || 'none').toString().toLowerCase() : 'none'
   const membershipStatus = profileLoaded ? (currentUser?.membership_status || 'nonaktif').toString().toLowerCase() : 'nonaktif'
