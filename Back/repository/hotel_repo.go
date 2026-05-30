@@ -59,6 +59,9 @@ func (r *HotelRepository) ListHotels(page, pageSize int, filters map[string]inte
 	if status, ok := filters["status"]; ok {
 		query = query.Where("status = ?", status)
 	}
+	if minTotalRooms, ok := filters["min_total_rooms"]; ok {
+		query = query.Where("total_rooms >= ?", minTotalRooms)
+	}
 	if city, ok := filters["city"]; ok {
 		query = query.Where("city = ?", city)
 	}
@@ -87,11 +90,19 @@ func (r *HotelRepository) GetHotelsByOwner(ownerID int, page, pageSize int) ([]m
 
 	offset := (page - 1) * pageSize
 
-	if err := r.db.Where("owner_id = ?", ownerID).Count(&total).Error; err != nil {
+	// Use Model() to specify the table
+	baseQuery := r.db.Model(&models.Hotel{}).Where("owner_id = ?", ownerID)
+
+	if err := baseQuery.Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
 
-	if err := r.db.Where("owner_id = ?", ownerID).Offset(offset).Limit(pageSize).Find(&hotels).Error; err != nil {
+	if err := r.db.Model(&models.Hotel{}).
+		Where("owner_id = ?", ownerID).
+		Offset(offset).
+		Limit(pageSize).
+		Order("created_at DESC").
+		Find(&hotels).Error; err != nil {
 		return nil, 0, err
 	}
 
@@ -146,7 +157,7 @@ func (r *HotelRepository) SearchHotels(keyword string, page, pageSize int) ([]mo
 
 	offset := (page - 1) * pageSize
 
-	query := r.db.Where("status = ? AND (name LIKE ? OR location LIKE ? OR city LIKE ?)", "approved", "%"+keyword+"%", "%"+keyword+"%", "%"+keyword+"%")
+	query := r.db.Where("status = ? AND total_rooms > 0 AND (name LIKE ? OR location LIKE ? OR city LIKE ?)", "approved", "%"+keyword+"%", "%"+keyword+"%", "%"+keyword+"%")
 
 	if err := query.Count(&total).Error; err != nil {
 		return nil, 0, err

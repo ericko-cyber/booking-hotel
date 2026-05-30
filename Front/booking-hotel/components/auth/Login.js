@@ -14,7 +14,9 @@ export default function Login() {
   useEffect(() => {
     // Redirect if already logged in
     if (authService.isAuthenticated()) {
-      router.push('/dashboard')
+      const user = authService.getUser()
+      const redirectPath = user?.role === 'owner' ? '/owner' : user?.role === 'admin' ? '/admin' : '/'
+      router.push(redirectPath)
     }
   }, [router])
 
@@ -36,8 +38,11 @@ export default function Login() {
         const result = await authService.login(form.email, form.password)
         if (result.success) {
           setDone(true)
+          // Get user role and redirect to appropriate dashboard
+          const user = authService.getUser()
+          const redirectPath = user?.role === 'owner' ? '/owner' : user?.role === 'admin' ? '/admin' : '/'
           setTimeout(() => {
-            router.push('/dashboard')
+            router.push(redirectPath)
           }, 1200)
         }
       } catch (error) {

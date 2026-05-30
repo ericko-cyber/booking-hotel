@@ -33,6 +33,9 @@ type Booking struct {
 	SpecialNotes       sql.NullString `json:"special_notes"`
 	CreatedAt          time.Time      `json:"created_at"`
 	UpdatedAt          time.Time      `json:"updated_at"`
+	Location           sql.NullString `json:"location" gorm:"column:location;->"`
+	HotelName          sql.NullString `json:"hotel_name" gorm:"column:hotel_name;->"`
+	RoomName           sql.NullString `json:"room_name" gorm:"column:room_name;->"`
 }
 
 // TableName specifies the table name
@@ -56,8 +59,10 @@ type CreateBookingRequest struct {
 
 // UpdateBookingStatusRequest for updating booking status
 type UpdateBookingStatusRequest struct {
-	Status        string `json:"status" binding:"required"`
-	PaymentStatus string `json:"payment_status"`
+	Status         string `json:"status" binding:"required"`
+	PaymentStatus  string `json:"payment_status"`
+	PaymentMethod  string `json:"payment_method"`
+	PaymentGateway string `json:"payment_gateway"`
 }
 
 // BookingListResponse for listing bookings
@@ -71,8 +76,9 @@ type BookingListResponse struct {
 
 // BookingDetailResponse with related data
 type BookingDetailResponse struct {
-	Booking Booking `json:"booking"`
-	Room    *Room   `json:"room,omitempty"`
-	Hotel   *Hotel  `json:"hotel,omitempty"`
-	User    *User   `json:"user,omitempty"`
+	Booking Booking  `json:"booking"`
+	Room    *Room    `json:"room,omitempty"`
+	Hotel   *Hotel   `json:"hotel,omitempty"`
+	User    *User    `json:"user,omitempty"`
+	Payment *Payment `json:"payment,omitempty"`
 }

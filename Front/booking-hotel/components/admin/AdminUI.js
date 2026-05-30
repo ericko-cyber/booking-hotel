@@ -47,11 +47,15 @@ const BADGE_MAP = {
   active:   { label: 'Active',   cls: 'bgGreen'  },
   inactive: { label: 'Inactive', cls: 'bgGray'   },
   expired:  { label: 'Expired',  cls: 'bgGray'   },
+  none:     { label: 'None',     cls: 'bgGray'   },
   user:     { label: 'User',     cls: 'bgBlue'   },
   owner:    { label: 'Owner',    cls: 'bgPurple' },
   admin:    { label: 'Admin',    cls: 'bgGold'   },
   global:   { label: 'Global',   cls: 'bgBlue'   },
   hotel:    { label: 'Per Hotel',cls: 'bgPurple' },
+  silver:   { label: 'Silver',   cls: 'bgGray'   },
+  gold:     { label: 'Gold',     cls: 'bgGold'   },
+  platinum: { label: 'Platinum', cls: 'bgPurple' },
 }
 export function Badge({ status }) {
   const m = BADGE_MAP[status] || { label: status, cls: 'bgGray' }

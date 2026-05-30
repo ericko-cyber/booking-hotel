@@ -56,24 +56,24 @@ export const OWNER_HOTELS = [
 // ── Rooms per hotel ──
 export const OWNER_ROOMS = {
   101: [
-    { id: 1001, name: 'Classic Room', price: 650, stock: 3, facilities: ['WiFi', 'AC', 'Minibar', 'Safe'] },
-    { id: 1002, name: 'Deluxe Suite', price: 850, stock: 2, facilities: ['WiFi', 'AC', 'Minibar', 'Safe', 'Jacuzzi', 'Balcony'] },
-    { id: 1003, name: 'Tower Suite', price: 1400, stock: 1, facilities: ['WiFi', 'AC', 'Minibar', 'Safe', 'Jacuzzi', 'Butler'] },
-    { id: 1004, name: 'Garden Room', price: 580, stock: 4, facilities: ['WiFi', 'AC', 'Safe'] },
-    { id: 1005, name: 'Presidential Suite', price: 3200, stock: 1, facilities: ['WiFi', 'AC', 'Minibar', 'Safe', 'Jacuzzi', 'Butler', 'Pool'] },
+    { id: 1001, name: 'Classic Room', price: 650, stock: 3, facilities: ['Wi-Fi', 'AC', 'Minibar', 'Brankas'] },
+    { id: 1002, name: 'Deluxe Suite', price: 850, stock: 2, facilities: ['Wi-Fi', 'AC', 'Minibar', 'Brankas', 'Jacuzzi', 'Balkon'] },
+    { id: 1003, name: 'Tower Suite', price: 1400, stock: 1, facilities: ['Wi-Fi', 'AC', 'Minibar', 'Brankas', 'Jacuzzi', 'Pelayan Pribadi'] },
+    { id: 1004, name: 'Garden Room', price: 580, stock: 4, facilities: ['Wi-Fi', 'AC', 'Brankas'] },
+    { id: 1005, name: 'Presidential Suite', price: 3200, stock: 1, facilities: ['Wi-Fi', 'AC', 'Minibar', 'Brankas', 'Jacuzzi', 'Pelayan Pribadi', 'Kolam Renang'] },
   ],
   102: [
-    { id: 2001, name: 'Garden Room', price: 780, stock: 2, facilities: ['WiFi', 'AC', 'Safe'] },
-    { id: 2002, name: 'Sea View Suite', price: 980, stock: 3, facilities: ['WiFi', 'AC', 'Minibar', 'Safe', 'Balcony'] },
-    { id: 2003, name: 'Cliff Suite', price: 1380, stock: 1, facilities: ['WiFi', 'AC', 'Minibar', 'Safe', 'Private Terrace'] },
+    { id: 2001, name: 'Garden Room', price: 780, stock: 2, facilities: ['Wi-Fi', 'AC', 'Brankas'] },
+    { id: 2002, name: 'Sea View Suite', price: 980, stock: 3, facilities: ['Wi-Fi', 'AC', 'Minibar', 'Brankas', 'Balkon'] },
+    { id: 2003, name: 'Cliff Suite', price: 1380, stock: 1, facilities: ['Wi-Fi', 'AC', 'Minibar', 'Brankas', 'Terasa Pribadi'] },
   ],
   103: [
-    { id: 3001, name: 'Alpine Room', price: 420, stock: 2, facilities: ['WiFi', 'Fireplace', 'Safe'] },
-    { id: 3002, name: 'Matterhorn Suite', price: 680, stock: 2, facilities: ['WiFi', 'Fireplace', 'Safe', 'Balcony'] },
+    { id: 3001, name: 'Alpine Room', price: 420, stock: 2, facilities: ['Wi-Fi', 'Perapian', 'Brankas'] },
+    { id: 3002, name: 'Matterhorn Suite', price: 680, stock: 2, facilities: ['Wi-Fi', 'Perapian', 'Brankas', 'Balkon'] },
   ],
   104: [
-    { id: 4001, name: 'Azulejo Room', price: 320, stock: 4, facilities: ['WiFi', 'AC', 'Safe'] },
-    { id: 4002, name: 'Palace Suite', price: 580, stock: 2, facilities: ['WiFi', 'AC', 'Minibar', 'Safe', 'Terrace'] },
+    { id: 4001, name: 'Azulejo Room', price: 320, stock: 4, facilities: ['Wi-Fi', 'AC', 'Brankas'] },
+    { id: 4002, name: 'Palace Suite', price: 580, stock: 2, facilities: ['Wi-Fi', 'AC', 'Minibar', 'Brankas', 'Terasa'] },
   ],
 }
 

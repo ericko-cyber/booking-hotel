@@ -1,7 +1,9 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import Link from 'next/link'
 import Navbar from '../layout/Navbar'
 import Footer from '../layout/Footer'
 import VoucherModal from '../modals/VoucherModal'
+import api from '../../lib/api'
 import MembershipModal from '../modals/MembershipModal'
 import BookingPanel from './BookingPanel'
 
@@ -11,6 +13,22 @@ const AMENITY_META = {
   gym: { label: 'Pusat Kebugaran', icon: 'M6.5 6.5h11M6.5 17.5h11M3 9.5v5M21 9.5v5' },
   dining: { label: 'Restoran Premium', icon: 'M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2M7 2v20M21 15V2a5 5 0 0 0-5 5v6h3.5a1.5 1.5 0 0 1 0 3H17l-1 4' },
   concierge: { label: 'Concierge 24 Jam', icon: 'M18 8h1a4 4 0 0 1 0 8h-1M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8zM6 1v3M10 1v3M14 1v3' },
+}
+
+const ROOM_FACILITY_META = {
+  wifi: 'Wi-Fi',
+  ac: 'AC',
+  tv: 'TV',
+  minibar: 'Minibar',
+  safe: 'Brankas',
+  jacuzzi: 'Jacuzzi',
+  balcony: 'Balkon',
+  butler: 'Pelayan Pribadi',
+  pool: 'Kolam Renang',
+  fireplace: 'Perapian',
+  terrace: 'Terasa',
+  private_terrace: 'Terasa Pribadi',
+  ocean_view: 'Pemandangan Laut',
 }
 
 function StarRating({ rating, size = 14 }) {
@@ -37,21 +55,32 @@ export default function HotelDetailPage({ hotel, similar = [] }) {
   const [activeImg, setActiveImg] = useState(0)
   const [showVoucher, setShowVoucher] = useState(false)
   const [showMembership, setShowMembership] = useState(false)
+  const [vouchersData, setVouchersData] = useState(null)
   const [activeTab, setActiveTab] = useState('overview')
+
+  // fetch vouchers when modal opens
+  useEffect(() => {
+    let cancelled = false
+    const fetchV = async () => {
+      try {
+        const res = await api.get('/vouchers/my-claims')
+        const list = res?.data || res || []
+        if (!cancelled) setVouchersData(list)
+      } catch (err) {
+        if (!cancelled) setVouchersData([])
+      }
+    }
+    if (showVoucher) fetchV()
+    return () => { cancelled = true }
+  }, [showVoucher])
   const images = hotel.images?.length
     ? hotel.images
     : [
-        { bg: hotel.bg, label: hotel.name },
-        { bg: hotel.bg, label: hotel.location },
-        { bg: hotel.bg, label: hotel.region },
+        { bg: hotel.bg, imageUrl: hotel.bgImageUrl, label: hotel.name },
+        { bg: hotel.bg, imageUrl: hotel.bgImageUrl, label: hotel.location },
+        { bg: hotel.bg, imageUrl: hotel.bgImageUrl, label: hotel.region },
       ]
-  const highlights = hotel.highlights?.length
-    ? hotel.highlights
-    : [
-        'Properti terverifikasi',
-        'Lokasi strategis',
-        'Booking langsung melalui platform',
-      ]
+  const highlights = hotel.highlights || []
   const rooms = hotel.rooms?.length
     ? hotel.rooms
     : [
@@ -70,15 +99,20 @@ export default function HotelDetailPage({ hotel, similar = [] }) {
       <Navbar onVoucherClick={() => setShowVoucher(true)} />
 
       <div style={styles.breadcrumb}>
-        <a href="/">Beranda</a>
+        <Link href="/">Beranda</Link>
         <span>/</span>
-        <a href="/hotels">Koleksi Hotel</a>
+        <Link href="/hotels">Koleksi Hotel</Link>
         <span>/</span>
         <span>{hotel.name}</span>
       </div>
 
       <section style={styles.gallery}>
-        <div style={{ ...styles.galleryMain, background: images[activeImg]?.bg || hotel.bg }}>
+        <div
+          style={images[activeImg]?.imageUrl
+            ? { ...styles.galleryMain, backgroundImage: `url(${images[activeImg].imageUrl})`, backgroundSize: 'cover', backgroundPosition: 'center' }
+            : { ...styles.galleryMain, background: images[activeImg]?.bg || hotel.bg }
+          }
+        >
           {hotel.featured && <span style={styles.editorBadge}>Pilihan Editor</span>}
           <div style={styles.galleryMainLabel}>{images[activeImg]?.label || hotel.name}</div>
           <button style={{ ...styles.galleryNav, ...styles.galleryPrev }} onClick={() => setActiveImg((i) => (i - 1 + images.length) % images.length)}>
@@ -98,7 +132,10 @@ export default function HotelDetailPage({ hotel, similar = [] }) {
           {images.map((img, i) => (
             <button
               key={i}
-              style={{ ...styles.thumb, ...(i === activeImg ? styles.thumbActive : {}), background: img.bg }}
+              style={img.imageUrl
+                ? { ...styles.thumb, ...(i === activeImg ? styles.thumbActive : {}), backgroundImage: `url(${img.imageUrl})`, backgroundSize: 'cover', backgroundPosition: 'center' }
+                : { ...styles.thumb, ...(i === activeImg ? styles.thumbActive : {}), background: img.bg }
+              }
               onClick={() => setActiveImg(i)}
             >
               <span style={styles.thumbLabel}>{img.label}</span>
@@ -126,9 +163,9 @@ export default function HotelDetailPage({ hotel, similar = [] }) {
           <div style={styles.tabs}>
             {['overview', 'rooms', 'reviews'].map((tab) => (
               <button
-                key={tab}
-                style={{ ...styles.tab, ...(activeTab === tab ? styles.tabActive : {}) }}
-                onClick={() => setActiveTab(tab)}
+                    key={tab}
+                    style={{ ...styles.tab, ...(activeTab === tab ? styles.tabActive : {}) }}
+                    onClick={() => setActiveTab(tab)}
               >
                 {tab === 'overview' ? 'Ikhtisar' : tab === 'rooms' ? 'Kamar' : 'Ulasan'}
               </button>
@@ -138,21 +175,24 @@ export default function HotelDetailPage({ hotel, similar = [] }) {
           {activeTab === 'overview' && (
             <>
               <p style={styles.desc}>{hotel.desc}</p>
-              <p style={styles.longDesc}>{hotel.longDesc}</p>
 
-              <div style={styles.section}>
-                <h3 style={styles.sectionTitle}>Sorotan Properti</h3>
-                <ul style={styles.highlightList}>
-                  {highlights.map((item, index) => (
-                    <li key={index}>{item}</li>
-                  ))}
-                </ul>
-              </div>
+              {hotel.longDesc ? <p style={styles.longDesc}>{hotel.longDesc}</p> : null}
+
+              {highlights.length > 0 && (
+                <div style={styles.section}>
+                  <h3 style={styles.sectionTitle}>Sorotan Properti</h3>
+                  <ul style={styles.highlightList}>
+                    {highlights.map((item, index) => (
+                      <li key={index}>{item}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
 
               <div style={styles.section}>
                 <h3 style={styles.sectionTitle}>Fasilitas</h3>
                 <div style={styles.amenityGrid}>
-                  {(hotel.amenities || []).map((item) => (
+                    {(hotel.amenities || []).map((item) => (
                     <div key={item} style={styles.amenityCard}>
                       <span>{AMENITY_META[item]?.label || item}</span>
                     </div>
@@ -164,7 +204,7 @@ export default function HotelDetailPage({ hotel, similar = [] }) {
                 <h3 style={styles.sectionTitle}>Lokasi</h3>
                 <div style={styles.mapPlaceholder}>
                   <p style={styles.mapCoords}>{hotel.location}</p>
-                  <p style={styles.mapNote}>Lat {hotel.lat}° · Lng {hotel.lng}°</p>
+                  {/* <p style={styles.mapNote}>Lat {hotel.lat}° · Lng {hotel.lng}°</p> */}
                 </div>
               </div>
             </>
@@ -179,9 +219,18 @@ export default function HotelDetailPage({ hotel, similar = [] }) {
                     <div style={styles.roomInfo}>
                       <h4 style={styles.roomName}>{room.name}</h4>
                       <div style={styles.roomMeta}>{room.size} • {room.beds} • {room.view}</div>
+                        <div style={styles.roomFacilityRow}>
+                        {room.facilities?.length > 0 ? room.facilities.map((facility) => (
+                          <span key={facility} style={styles.roomFacilityChip}>
+                            {ROOM_FACILITY_META[facility] || facility}
+                          </span>
+                        )) : (
+                          <span style={styles.roomFacilityEmpty}>Belum ada fasilitas</span>
+                        )}
+                      </div>
                     </div>
                     <div style={styles.roomPrice}>
-                      <strong>Rp{room.price.toLocaleString('id-ID')}</strong>
+                      <strong>Rp{Number(room.price).toLocaleString('id-ID')}</strong>
                       <span>/ malam</span>
                     </div>
                   </div>
@@ -216,7 +265,7 @@ export default function HotelDetailPage({ hotel, similar = [] }) {
         </div>
 
         <aside style={styles.aside}>
-          <BookingPanel hotel={hotel} onMembership={() => setShowMembership(true)} onVoucher={() => setShowVoucher(true)} />
+              <BookingPanel hotel={hotel} onMembership={() => setShowMembership(true)} onVoucher={() => setShowVoucher(true)} />
         </aside>
       </div>
 
@@ -227,16 +276,16 @@ export default function HotelDetailPage({ hotel, similar = [] }) {
             <h2 style={styles.similarTitle}>Properti Serupa</h2>
             <div style={styles.similarGrid}>
               {similar.map((item) => (
-                <a key={item.id} href={`/hotels/${item.id}`} style={styles.similarCard}>
-                  <div style={{ ...styles.similarImg, background: item.bg }}>
-                    {item.featured && <span style={styles.similarBadge}>Pilihan Editor</span>}
-                  </div>
-                  <div style={styles.similarBody}>
-                    <p style={styles.similarName}>{item.name}</p>
-                    <p style={styles.similarLoc}>{item.location}</p>
-                    <div style={styles.similarPrice}><span>Rp</span><strong>{item.price.toLocaleString('id-ID')}</strong><small>/ malam</small></div>
-                  </div>
-                </a>
+                <Link key={item.id} href={`/hotels/${item.id}`} style={styles.similarCard}>
+                    <div style={item.bgImageUrl ? { ...styles.similarImg, backgroundImage: `url(${item.bgImageUrl})`, backgroundSize: 'cover', backgroundPosition: 'center' } : { ...styles.similarImg, background: item.bg }}>
+                      {item.featured && <span style={styles.similarBadge}>Pilihan Editor</span>}
+                    </div>
+                    <div style={styles.similarBody}>
+                      <p style={styles.similarName}>{item.name}</p>
+                      <p style={styles.similarLoc}>{item.location}</p>
+                      <div style={styles.similarPrice}><span>Rp</span><strong>{item.price.toLocaleString('id-ID')}</strong><small>/ malam</small></div>
+                    </div>
+                </Link>
               ))}
             </div>
           </div>
@@ -244,7 +293,9 @@ export default function HotelDetailPage({ hotel, similar = [] }) {
       )}
 
       <Footer />
-      {showVoucher && <VoucherModal onClose={() => setShowVoucher(false)} />}
+      {showVoucher && (
+        <VoucherModal onClose={() => setShowVoucher(false)} vouchers={vouchersData} />
+      )}
       {showMembership && <MembershipModal onClose={() => setShowMembership(false)} />}
     </>
   )
@@ -420,6 +471,19 @@ const styles = {
   roomInfo: {},
   roomName: { marginBottom: 4 },
   roomMeta: { color: '#777', fontSize: 13 },
+  roomFacilityRow: { display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 10 },
+  roomFacilityChip: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    padding: '5px 10px',
+    borderRadius: 999,
+    background: '#f4f1ec',
+    border: '1px solid #e7e1d8',
+    color: '#5f5a52',
+    fontSize: 11,
+    lineHeight: 1,
+  },
+  roomFacilityEmpty: { color: '#9a9186', fontSize: 12, fontStyle: 'italic' },
   roomPrice: { textAlign: 'right' },
   reviewSummary: { marginBottom: 18 },
   reviewScore: { display: 'flex', gap: 14, alignItems: 'center' },

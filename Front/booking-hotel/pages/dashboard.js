@@ -1,5 +1,8 @@
+import { useMemo } from 'react'
+import { useRouter } from 'next/router'
 import Navbar from '../components/layout/Navbar'
 import Footer from '../components/layout/Footer'
+import { authService } from '../services/authService'
 
 const stats = [
   { label: 'Pemesanan Bulan Ini', value: '1.248' },
@@ -15,16 +18,55 @@ const todayBookings = [
 ]
 
 export default function DashboardPage() {
+  const router = useRouter()
+  const user = authService.getUser()
+
+  const membershipInfo = useMemo(() => {
+    const queryTier = Array.isArray(router.query?.membership_tier) ? router.query.membership_tier[0] : router.query?.membership_tier
+    const queryStatus = Array.isArray(router.query?.membership_status) ? router.query.membership_status[0] : router.query?.membership_status
+    const tier = (queryTier || user?.membership_tier || 'none').toString().toLowerCase()
+    const status = (queryStatus || user?.membership_status || 'nonaktif').toString().toLowerCase()
+    const labels = {
+      none: 'Nonmember',
+      silver: 'Silver',
+      gold: 'Gold',
+      platinum: 'Platinum',
+    }
+
+    return {
+      tier,
+      status,
+      label: labels[tier] || tier || 'Nonmember',
+      isActive: status === 'active' || status === 'aktif',
+    }
+  }, [router.query?.membership_status, router.query?.membership_tier, user?.membership_status, user?.membership_tier])
+
+  const successMessage = router.query?.payment === 'success'
+    ? `Selamat, status membership ${membershipInfo.label} sudah aktif.`
+    : null
+
   return (
     <>
       <Navbar />
       <main style={styles.main}>
         <section style={styles.hero}>
-          <p style={styles.eyebrow}>DASHBOARD BOOKING HOTEL</p>
-          <h1 style={styles.title}>Ringkasan Operasional Hotel</h1>
-          <p style={styles.subtitle}>
-            Pantau pemesanan, check-in, ketersediaan kamar, dan pendapatan harian di satu halaman.
-          </p>
+          <div style={styles.heroTopRow}>
+            <div>
+              <p style={styles.eyebrow}>DASHBOARD BOOKING HOTEL</p>
+              <h1 style={styles.title}>Ringkasan Operasional Hotel</h1>
+              <p style={styles.subtitle}>
+                Pantau pemesanan, check-in, ketersediaan kamar, dan pendapatan harian di satu halaman.
+              </p>
+            </div>
+            <div style={styles.membershipBadge}>
+              <span style={styles.membershipBadgeLabel}>Status Membership</span>
+              <strong style={styles.membershipBadgeValue}>{membershipInfo.label}</strong>
+              <span style={membershipInfo.isActive ? styles.membershipActive : styles.membershipInactive}>
+                {membershipInfo.isActive ? 'Aktif' : 'Tidak aktif'}
+              </span>
+            </div>
+          </div>
+          {successMessage ? <p style={styles.successBanner}>{successMessage}</p> : null}
         </section>
 
         <section style={styles.grid}>
@@ -83,6 +125,12 @@ const styles = {
     padding: '24px 28px',
     color: '#fff',
   },
+  heroTopRow: {
+    display: 'flex',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: 24,
+  },
   eyebrow: {
     margin: 0,
     fontSize: 12,
@@ -100,6 +148,56 @@ const styles = {
     margin: 0,
     opacity: 0.85,
     fontSize: 14,
+  },
+  membershipBadge: {
+    minWidth: 180,
+    padding: '12px 14px',
+    borderRadius: 12,
+    background: 'rgba(255,255,255,0.08)',
+    border: '1px solid rgba(255,255,255,0.12)',
+    textAlign: 'right',
+  },
+  membershipBadgeLabel: {
+    display: 'block',
+    fontSize: 11,
+    letterSpacing: '0.12em',
+    textTransform: 'uppercase',
+    opacity: 0.72,
+    marginBottom: 6,
+  },
+  membershipBadgeValue: {
+    display: 'block',
+    fontSize: 20,
+    lineHeight: 1.2,
+    marginBottom: 4,
+  },
+  membershipActive: {
+    display: 'inline-block',
+    padding: '4px 8px',
+    borderRadius: 999,
+    background: '#22c55e',
+    color: '#052e16',
+    fontSize: 12,
+    fontWeight: 700,
+  },
+  membershipInactive: {
+    display: 'inline-block',
+    padding: '4px 8px',
+    borderRadius: 999,
+    background: '#facc15',
+    color: '#422006',
+    fontSize: 12,
+    fontWeight: 700,
+  },
+  successBanner: {
+    margin: '14px 0 0',
+    padding: '12px 14px',
+    borderRadius: 10,
+    background: 'rgba(34, 197, 94, 0.14)',
+    border: '1px solid rgba(34, 197, 94, 0.35)',
+    color: '#dcfce7',
+    fontSize: 14,
+    fontWeight: 600,
   },
   grid: {
     maxWidth: 1100,

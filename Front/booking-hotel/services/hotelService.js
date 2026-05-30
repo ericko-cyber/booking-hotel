@@ -1,13 +1,27 @@
 import api from '../lib/api'
 
+const toHotelList = (response) => {
+  // response may be already `response.data` (api interceptor returns response.data)
+  // Backend wraps list under `Data` with `Hotels` (capitalized). Handle multiple shapes.
+  const resp = response || {}
+  const maybeData = resp.data || resp
+
+  // possible shapes:
+  // 1) { Hotels: [...] } (from ApiResponse.Data)
+  // 2) { hotels: [...] }
+  // 3) [...] (array)
+  if (Array.isArray(maybeData?.Hotels)) return maybeData.Hotels
+  if (Array.isArray(maybeData?.hotels)) return maybeData.hotels
+  if (Array.isArray(maybeData)) return maybeData
+  return []
+}
+
 export const hotelService = {
   // Get all approved hotels
   getAllHotels: async (params = {}) => {
     try {
       const response = await api.get('/hotels', { params })
-      return response.data || []
-      const response = await api.get('/hotels/search', { params })
-      return response.data || []
+      return toHotelList(response)
     } catch (error) {
       throw error
     }
@@ -27,7 +41,8 @@ export const hotelService = {
   getRoomsByHotel: async (hotelId, params = {}) => {
     try {
       const response = await api.get(`/hotels/${hotelId}/rooms`, { params })
-      return response.data || []
+      const payload = response?.data || response
+      return payload?.rooms || []
     } catch (error) {
       throw error
     }
@@ -37,6 +52,20 @@ export const hotelService = {
   createHotel: async (data) => {
     try {
       const response = await api.post('/hotels', data)
+      return response
+    } catch (error) {
+      throw error
+    }
+  },
+
+  // Upload a hotel image file and get a public URL
+  uploadHotelImage: async (file) => {
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+      const response = await api.post('/hotels/upload-image', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      })
       return response
     } catch (error) {
       throw error
@@ -67,7 +96,7 @@ export const hotelService = {
   getOwnerHotels: async () => {
     try {
       const response = await api.get('/hotels/owner/my-hotels')
-      return response.data || []
+      return toHotelList(response)
     } catch (error) {
       throw error
     }

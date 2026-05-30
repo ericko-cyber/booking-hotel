@@ -1,11 +1,22 @@
-import { useState, useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import Link from 'next/link'
 import Navbar from '../components/layout/Navbar'
 import Footer from '../components/layout/Footer'
 import VoucherModal from '../components/modals/VoucherModal'
+import api from '../lib/api'
 import MembershipModal from '../components/modals/MembershipModal'
 import HotelCard from '../components/hotels/HotelCard'
 import HotelFilters from '../components/hotels/HotelFilters'
 import styles from '../components/Hotels.module.css'
+
+const API_ORIGIN = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api').replace(/\/api\/?$/, '')
+
+const nullStringValue = (value) => {
+  if (!value) return ''
+  if (typeof value === 'string') return value
+  if (typeof value === 'object' && value.Valid) return value.String || ''
+  return ''
+}
 
 export const ALL_HOTELS = [
   {
@@ -144,28 +155,172 @@ const SORT_OPTIONS = [
   { value: 'reviews', label: 'Ulasan Terbanyak' },
 ]
 
-export default function Hotels() {
+const DUMMY_BG = [
+  'linear-gradient(135deg, #3a2a1a 0%, #6b4a2a 60%, #8a6a40 100%)',
+  'linear-gradient(135deg, #1a4a1a 0%, #2d7a3a 60%, #4a9a50 100%)',
+  'linear-gradient(135deg, #1a3a5a 0%, #2a6a9a 60%, #4a8aba 100%)',
+  'linear-gradient(135deg, #2a1a3a 0%, #5a3a6a 60%, #8a5a8a 100%)',
+]
+
+const parseAmenityList = (value) => {
+  if (Array.isArray(value)) return value
+  if (typeof value !== 'string' || !value) return []
+  try {
+    const parsed = JSON.parse(value)
+    return Array.isArray(parsed) ? parsed : []
+  } catch {
+    return []
+  }
+}
+
+const parseHotelImages = (value) => {
+  if (!value) return []
+  if (Array.isArray(value)) return value.filter(Boolean)
+  if (typeof value === 'object' && value.Valid) return parseHotelImages(value.String)
+  if (typeof value !== 'string') return []
+  try {
+    const parsed = JSON.parse(value)
+    return Array.isArray(parsed) ? parsed.filter(Boolean) : []
+  } catch {
+    return [value]
+  }
+}
+
+const resolveImageUrl = (value) => {
+  if (!value) return ''
+  if (value.startsWith('http') || value.startsWith('data:') || value.startsWith('blob:')) return value
+  if (value.startsWith('/')) return `${API_ORIGIN}${value}`
+  return value
+}
+
+const mapApiHotelToCard = (hotel, index = 0) => {
+  const region = hotel.city || hotel.province || hotel.country || 'Indonesia'
+  const location = [hotel.location, hotel.address].filter(Boolean).join(' • ') || region
+  const amenityList = parseAmenityList(hotel.amenities)
+  const category = hotel.category ? String(hotel.category) : 'hotel'
+  const priceBase = 300 + (Number(hotel.total_rooms || 1) * 50)
+  const hotelImages = parseHotelImages(hotel.image)
+
+  const moodVal = nullStringValue(hotel.suasana) || (hotel.status === 'approved' ? 'Perkotaan' : 'Alam')
+
+  return {
+    id: hotel.id,
+    name: hotel.name,
+    location,
+    region,
+    price: Number(hotel.price || priceBase),
+    rating: Number(hotel.rating || 0),
+    reviews: Number(hotel.review_count || 0),
+    tags: [category.charAt(0).toUpperCase() + category.slice(1), `${Number(hotel.total_rooms || 0)} Kamar`],
+    mood: moodVal,
+    bg: DUMMY_BG[index % DUMMY_BG.length],
+    bgImageUrl: resolveImageUrl(hotelImages[0] || ''),
+    amenities: amenityList,
+    featured: Number(hotel.rating || 0) >= 4.8 || index === 0,
+  }
+}
+
+export default function Hotels({ initialHotels = [] }) {
   const [showVoucher, setShowVoucher] = useState(false)
+  const [vouchersData, setVouchersData] = useState(null)
   const [showMembership, setShowMembership] = useState(false)
-  const [filters, setFilters] = useState({
-    mood: '',
-    region: '',
-    priceMax: 2500,
-    amenities: [],
-    search: '',
-  })
+  const [hotels, setHotels] = useState(initialHotels)
   const [sort, setSort] = useState('featured')
   const [saved, setSaved] = useState([])
+
+  const priceBounds = useMemo(() => {
+    const prices = hotels.map((hotel) => Number(hotel.price || 0)).filter((price) => price > 0)
+    if (prices.length === 0) {
+      return { min: 0, max: 2500 }
+    }
+    const min = Math.max(0, Math.min(...prices))
+    const maxRaw = Math.max(...prices)
+    return {
+      min,
+      max: maxRaw === min ? min + 1 : maxRaw,
+    }
+  }, [hotels])
+
+  const availableAmenityOptions = useMemo(() => {
+    const labels = new Map([
+      ['pool', 'Kolam Renang'],
+      ['spa', 'Spa & Kebugaran'],
+      ['gym', 'Pusat Kebugaran'],
+      ['dining', 'Restoran Premium'],
+      ['concierge', 'Layanan Concierge'],
+      ['wifi', 'Wi-Fi'],
+      ['ac', 'AC'],
+      ['tv', 'TV'],
+      ['minibar', 'Minibar'],
+      ['safe', 'Brankas'],
+      ['jacuzzi', 'Jacuzzi'],
+      ['balcony', 'Balkon'],
+      ['butler', 'Pelayan Pribadi'],
+      ['fireplace', 'Perapian'],
+      ['terrace', 'Terasa'],
+      ['private_terrace', 'Terasa Pribadi'],
+      ['ocean_view', 'Pemandangan Laut'],
+      ['parking', 'Parkir'],
+      ['restaurant', 'Restoran'],
+    ])
+
+    const keys = new Set()
+    hotels.forEach((hotel) => {
+      (hotel.amenities || []).forEach((amenity) => {
+        if (amenity) keys.add(String(amenity))
+      })
+    })
+
+    return [...keys].sort().map((key) => ({
+      key,
+      label: labels.get(key) || key,
+    }))
+  }, [hotels])
+
+  const defaultFilters = useMemo(() => ({
+    mood: '',
+    region: '',
+    regionQuery: '',
+    priceMax: priceBounds.max,
+    amenities: [],
+    search: '',
+  }), [priceBounds.max])
+
+  const [filters, setFilters] = useState(() => defaultFilters)
+
+  // Keep a derived view of filters where priceMax is clamped to available bounds.
+  const effectiveFilters = useMemo(() => ({
+    ...filters,
+    priceMax: Math.min(Math.max(Number(filters.priceMax || 0), priceBounds.min), priceBounds.max),
+  }), [filters, priceBounds.min, priceBounds.max])
+
+  // Fetch user's vouchers when voucher modal opens
+  useEffect(() => {
+    let cancelled = false
+    const fetchVouchers = async () => {
+      try {
+        const res = await api.get('/vouchers/my-claims')
+        // api returns { success, data } or direct data depending on wrapper
+        const list = res?.data || res || []
+        if (!cancelled) setVouchersData(list)
+      } catch (err) {
+        if (!cancelled) setVouchersData([])
+      }
+    }
+    if (showVoucher) fetchVouchers()
+    return () => { cancelled = true }
+  }, [showVoucher])
 
   const toggleSave = (id) => {
     setSaved((prev) => (prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]))
   }
 
   const filtered = useMemo(() => {
-    let list = [...ALL_HOTELS]
+    const f = effectiveFilters
+    let list = [...hotels]
 
-    if (filters.search) {
-      const q = filters.search.toLowerCase()
+    if (f.search) {
+      const q = f.search.toLowerCase()
       list = list.filter(
         (h) =>
           h.name.toLowerCase().includes(q) ||
@@ -173,11 +328,18 @@ export default function Hotels() {
           h.mood.toLowerCase().includes(q),
       )
     }
-    if (filters.mood) list = list.filter((h) => h.mood === filters.mood)
-    if (filters.region) list = list.filter((h) => h.region === filters.region)
-    list = list.filter((h) => h.price <= filters.priceMax)
-    if (filters.amenities.length > 0) {
-      list = list.filter((h) => filters.amenities.every((a) => h.amenities.includes(a)))
+    if (f.mood) list = list.filter((h) => h.mood === f.mood)
+    if (f.region) list = list.filter((h) => h.region === f.region)
+    if (f.regionQuery?.trim()) {
+      const regionKeyword = f.regionQuery.trim().toLowerCase()
+      list = list.filter((h) =>
+        h.region.toLowerCase().includes(regionKeyword) ||
+        h.location.toLowerCase().includes(regionKeyword),
+      )
+    }
+    list = list.filter((h) => h.price <= f.priceMax)
+    if (f.amenities.length > 0) {
+      list = list.filter((h) => f.amenities.every((a) => h.amenities.includes(a)))
     }
 
     if (sort === 'featured') list.sort((a, b) => (b.featured ? 1 : 0) - (a.featured ? 1 : 0))
@@ -187,7 +349,12 @@ export default function Hotels() {
     else if (sort === 'reviews') list.sort((a, b) => b.reviews - a.reviews)
 
     return list
-  }, [filters, sort])
+  }, [effectiveFilters, sort, hotels])
+
+  const availableRegions = useMemo(() => {
+    const unique = new Set(hotels.map((h) => h.region).filter(Boolean))
+    return [...unique].sort((a, b) => a.localeCompare(b))
+  }, [hotels])
 
   return (
     <>
@@ -218,7 +385,14 @@ export default function Hotels() {
 
       <div className={styles.layout}>
         <aside className={styles.sidebar}>
-          <HotelFilters filters={filters} setFilters={setFilters} />
+            <HotelFilters
+              filters={filters}
+              setFilters={setFilters}
+              regions={availableRegions}
+              amenities={availableAmenityOptions}
+              priceBounds={priceBounds}
+              defaultFilters={defaultFilters}
+            />
         </aside>
 
         <main className={styles.main}>
@@ -258,7 +432,7 @@ export default function Hotels() {
               <p>Tidak ada properti yang sesuai dengan filter Anda.</p>
               <button
                 className={styles.resetBtn}
-                onClick={() => setFilters({ mood: '', region: '', priceMax: 2500, amenities: [], search: '' })}
+                onClick={() => setFilters(defaultFilters)}
               >
                 Reset Filter
               </button>
@@ -268,8 +442,53 @@ export default function Hotels() {
       </div>
 
       <Footer />
-      {showVoucher && <VoucherModal onClose={() => setShowVoucher(false)} />}
+      {showVoucher && (
+        <VoucherModal
+          onClose={() => setShowVoucher(false)}
+          vouchers={vouchersData}
+        />
+      )}
       {showMembership && <MembershipModal onClose={() => setShowMembership(false)} />}
     </>
   )
+}
+
+export async function getServerSideProps() {
+  try {
+    const res = await fetch('http://localhost:8080/api/hotels')
+    const json = await res.json()
+    const apiHotels = json?.data?.hotels || json?.data?.Hotels || []
+    const approvedList = apiHotels.filter((hotel) => hotel.status === 'approved' && Number(hotel.total_rooms || 0) > 0)
+
+    const enriched = await Promise.all(approvedList.map(async (hotel) => {
+      try {
+        const roomsRes = await fetch(`http://localhost:8080/api/hotels/${hotel.id}/rooms`)
+        const roomsJson = await roomsRes.json()
+        const rooms = roomsJson?.data?.rooms || roomsJson?.data || []
+        const prices = rooms.map((r) => Number(r.price || 0)).filter((p) => p > 0)
+        const displayPrice = prices.length ? Math.min(...prices) : undefined
+
+        const card = mapApiHotelToCard(hotel)
+        if (typeof displayPrice !== 'undefined') card.price = Number(displayPrice)
+        return card
+      } catch (err) {
+        return mapApiHotelToCard(hotel)
+      }
+    }))
+
+    const approvedHotels = enriched
+
+    return {
+      props: {
+        initialHotels: approvedHotels,
+      },
+    }
+  } catch (error) {
+    console.error('Failed to load hotels on server', error)
+    return {
+      props: {
+        initialHotels: [],
+      },
+    }
+  }
 }

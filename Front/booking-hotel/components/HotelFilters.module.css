@@ -40,6 +40,39 @@
   border-top: 1px solid rgba(0, 0, 0, 0.07);
 }
 
+.searchInput {
+  width: 100%;
+  margin-bottom: 10px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(22, 120, 136, 0.24);
+  background: #f8fbfc;
+  color: var(--dark);
+  font-family: var(--font-sans);
+  font-size: 0.82rem;
+  transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
+}
+
+.searchInput:focus {
+  outline: none;
+  border-color: var(--teal);
+  box-shadow: 0 0 0 3px rgba(22, 120, 136, 0.12);
+  background: #fff;
+}
+
+.searchHint {
+  margin: 0 0 12px;
+  font-size: 0.72rem;
+  color: var(--teal);
+  line-height: 1.4;
+}
+
+.emptyHint {
+  margin-top: 8px;
+  font-size: 0.74rem;
+  color: #8b98a1;
+}
+
 .groupLabel {
   font-size: 0.7rem;
   font-weight: 600;
@@ -104,8 +137,8 @@
   background: linear-gradient(
     to right,
     var(--teal) 0%,
-    var(--teal) calc((var(--val, 50) - 200) / (2500 - 200) * 100%),
-    var(--light-gray) calc((var(--val, 50) - 200) / (2500 - 200) * 100%)
+    var(--teal) calc((var(--val, 50) - var(--min, 0)) / (var(--max, 2500) - var(--min, 0)) * 100%),
+    var(--light-gray) calc((var(--val, 50) - var(--min, 0)) / (var(--max, 2500) - var(--min, 0)) * 100%)
   );
   outline: none;
   cursor: pointer;

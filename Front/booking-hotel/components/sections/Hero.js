@@ -10,7 +10,7 @@ export default function Hero() {
           Liburan ke Destinasi<br />Tak Terduga.
         </h1>
 
-        <div className={styles.searchBar}>
+        {/* <div className={styles.searchBar}>
           <div className={styles.searchField}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
@@ -54,7 +54,7 @@ export default function Hero() {
             </svg>
             Cari
           </button>
-        </div>
+        </div> */}
       </div>
     </section>
   )

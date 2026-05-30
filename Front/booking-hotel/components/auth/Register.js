@@ -39,7 +39,7 @@ export default function Register() {
   useEffect(() => {
     // Redirect if already logged in
     if (authService.isAuthenticated()) {
-      router.push('/dashboard')
+      router.push('/')
     }
   }, [router])
 
@@ -68,9 +68,6 @@ export default function Register() {
         )
         if (result.success) {
           setDone(true)
-          setTimeout(() => {
-            router.push('/dashboard')
-          }, 1200)
         }
       } catch (error) {
         setLoading(false)

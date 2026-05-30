@@ -80,9 +80,21 @@
 .tableActions { display: flex; gap: 6px; }
 
 /* ── Form ── */
-.twoField { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.twoField {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
 
-.facilityPicker { display: flex; flex-wrap: wrap; gap: 7px; }
+.twoField > * {
+  min-width: 0;
+}
+
+.facilityPicker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
 .facChip {
   font-family: var(--sans);
   font-size: 12px;
@@ -98,4 +110,24 @@
 .facChip:hover { border-color: #1b4d5c; color: #1b4d5c; }
 .facChipOn { background: #1b4d5c !important; border-color: #1b4d5c !important; color: #fff !important; }
 
-.modalActions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; }
+.modalActions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  margin-top: 20px;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 640px) {
+  .twoField {
+    grid-template-columns: 1fr;
+  }
+
+  .modalActions {
+    justify-content: stretch;
+  }
+
+  .modalActions > * {
+    width: 100%;
+  }
+}

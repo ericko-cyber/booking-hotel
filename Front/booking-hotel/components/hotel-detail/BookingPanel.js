@@ -1,4 +1,10 @@
 import { useState } from 'react'
+import { useEffect } from 'react'
+import { useRouter } from 'next/router'
+import { benefitService } from '../../services/benefitService'
+import { voucherService } from '../../services/voucherService'
+import { bookingService } from '../../services/bookingService'
+import { authService } from '../../services/authService'
 import styles from './BookingPanel.module.css'
 
 const today = () => {
@@ -17,41 +23,294 @@ const diffDays = (a, b) => {
   return Math.max(1, Math.round((db - da) / 86400000))
 }
 
+const money = (value) => Number(value || 0).toLocaleString('id-ID')
+
+// Stored prices are in full rupiah units (e.g. 450000 means Rp450.000).
+const rupiah = (value) => `Rp${Number(value || 0).toLocaleString('id-ID')}`
+
+const MEMBERSHIP_DISCOUNT_DEFAULTS = {
+  silver: 5,
+  gold: 10,
+  platinum: 15,
+}
+
+const extractPercentFromText = (value) => {
+  if (!value) return null
+  const match = String(value).match(/(\d+(?:\.\d+)?)\s*%/)
+  if (!match) return null
+
+  const parsed = Number(match[1])
+  return Number.isNaN(parsed) ? null : parsed
+}
+
+const normalizeTier = (tierValue) => (tierValue || '').toString().trim().toLowerCase()
+
+const resolveBenefitTier = (benefit) => normalizeTier(
+  benefit?.membershipTier ??
+  benefit?.membership_tier ??
+  benefit?.tier ??
+  ''
+)
+
+const resolveDiscountPercent = (benefit) => {
+  const raw =
+    benefit?.discountPercent ??
+    benefit?.discount_percent ??
+    benefit?.discountValue ??
+    benefit?.discount_value ??
+    benefit?.value ??
+    benefit?.discount ??
+    null
+
+  if (raw != null && raw !== '') {
+    const value = typeof raw === 'string'
+      ? Number(raw.replace(/%/g, '').replace(/,/g, '').trim())
+      : Number(raw)
+
+    if (!Number.isNaN(value) && value > 0) {
+      return value
+    }
+  }
+
+  const textFallback = extractPercentFromText(benefit?.description) ?? extractPercentFromText(benefit?.title)
+  if (textFallback != null) {
+    return textFallback
+  }
+
+  return MEMBERSHIP_DISCOUNT_DEFAULTS[resolveBenefitTier(benefit)] || 0
+}
+
+const pickBestDiscountBenefit = (allDiscounts, tierId) => {
+  const normalizedTierId = normalizeTier(tierId)
+  const candidates = allDiscounts.filter((item) => resolveBenefitTier(item) === normalizedTierId)
+  if (!candidates.length) return null
+
+  const withValue = candidates.filter((item) => resolveDiscountPercent(item) > 0)
+  if (withValue.length) {
+    return withValue.sort((a, b) => resolveDiscountPercent(b) - resolveDiscountPercent(a))[0]
+  }
+
+  return candidates[0]
+}
+
+const formatMemberTier = (tier) => {
+  const normalized = normalizeTier(tier)
+  if (!normalized || normalized === 'none') return 'Member'
+  return `Member ${normalized.charAt(0).toUpperCase() + normalized.slice(1)}`
+}
+
 const fmt = (dateStr) => {
   const d = new Date(dateStr)
   return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
 }
 
 export default function BookingPanel({ hotel, onMembership, onVoucher }) {
+  const router = useRouter()
   const t = today()
   const rooms = Array.isArray(hotel.rooms) && hotel.rooms.length > 0
     ? hotel.rooms
-    : [{ name: 'Kamar Standar', price: hotel.price, available: true }]
+    : [{ name: 'Kamar Standar', price: hotel.price, available: true, capacity: 2 }]
   const [checkIn, setCheckIn] = useState(addDays(t, 1))
   const [checkOut, setCheckOut] = useState(addDays(t, 4))
-  const [guests, setGuests] = useState(2)
+  const [guests, setGuests] = useState(Math.min(2, Math.max(1, Number(rooms.find(r => r.available)?.capacity || rooms[0]?.capacity || 2))))
   const [selectedRoom, setSelectedRoom] = useState(rooms.find(r => r.available)?.name || rooms[0].name)
   const [voucher, setVoucher] = useState('')
   const [voucherApplied, setVoucherApplied] = useState(false)
   const [voucherErr, setVoucherErr] = useState(false)
+  const [voucherLoading, setVoucherLoading] = useState(false)
+  const [voucherDiscount, setVoucherDiscount] = useState(0)
+  const [voucherMessage, setVoucherMessage] = useState('')
   const [booked, setBooked] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [bookingLoading, setBookingLoading] = useState(false)
+  const [bookingError, setBookingError] = useState('')
+  const [membershipDiscountRate, setMembershipDiscountRate] = useState(0)
+  const [membershipDiscountLabel, setMembershipDiscountLabel] = useState('')
 
   const nights = diffDays(checkIn, checkOut)
   const room = rooms.find(r => r.name === selectedRoom) || rooms[0]
-  const basePrice = (room?.price || hotel.price) * nights
+  const maxGuests = Math.max(1, Number(room?.capacity || hotel.max_guests || room?.size || 1))
+  const roomPrice = Number(room?.price || hotel.price || 0)
+  const basePrice = roomPrice * nights
   const taxRate = 0.10
-  const discount = voucherApplied ? 250 : 0
+  const membershipDiscount = Math.round(basePrice * (membershipDiscountRate / 100))
+  const discount = voucherApplied ? voucherDiscount : 0
   const taxes = Math.round(basePrice * taxRate)
-  const total = basePrice + taxes - discount
+  const total = Math.max(0, basePrice + taxes - membershipDiscount - discount)
+  const hasMembershipDiscount = membershipDiscount > 0
+  const discountSummary = [
+    hasMembershipDiscount ? `${membershipDiscountLabel || 'Member'} diskon ${membershipDiscountRate}%` : null,
+    voucherApplied ? 'Voucher diterapkan' : null,
+  ].filter(Boolean)
 
-  const applyVoucher = () => {
-    if (voucher.toUpperCase().startsWith('SL-')) {
-      setVoucherApplied(true)
-      setVoucherErr(false)
-    } else {
+  useEffect(() => {
+    if (guests <= maxGuests) return
+    const t = setTimeout(() => {
+      setGuests((current) => Math.min(current, maxGuests))
+    }, 0)
+    return () => clearTimeout(t)
+  }, [maxGuests, guests])
+
+  useEffect(() => {
+    let cancelled = false
+
+    const fetchMembershipDiscount = async () => {
+      try {
+        if (!authService.isAuthenticated()) {
+          if (!cancelled) {
+            setMembershipDiscountRate(0)
+            setMembershipDiscountLabel('')
+          }
+          return
+        }
+
+        const user = authService.getUser()
+        const tier = normalizeTier(user?.membership_tier || user?.level_name || user?.tier || 'none')
+        if (!tier || tier === 'none') {
+          if (!cancelled) {
+            setMembershipDiscountRate(0)
+            setMembershipDiscountLabel('')
+          }
+          return
+        }
+
+        const benefits = await benefitService.getBenefits({ status: 'active', type: 'discount' })
+        const matchedBenefit = pickBestDiscountBenefit(benefits, tier)
+        const rate = matchedBenefit ? resolveDiscountPercent(matchedBenefit) : 0
+
+        if (!cancelled) {
+          setMembershipDiscountRate(rate)
+          setMembershipDiscountLabel(formatMemberTier(tier))
+        }
+      } catch (error) {
+        const user = authService.getUser()
+        const tier = normalizeTier(user?.membership_tier || user?.level_name || user?.tier || 'none')
+        if (!cancelled) {
+          setMembershipDiscountRate(MEMBERSHIP_DISCOUNT_DEFAULTS[tier] || 0)
+          setMembershipDiscountLabel(formatMemberTier(tier))
+        }
+      }
+    }
+
+    fetchMembershipDiscount()
+
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  const handleReserveNow = async () => {
+    setBookingError('')
+    const selectedVoucherCode = voucherApplied && voucher.trim()
+      ? voucher.trim().toUpperCase()
+      : ''
+
+    if (!room?.id) {
+      setBookingError('Data kamar tidak lengkap. Silakan pilih kamar lain.')
+      return
+    }
+
+    setBookingLoading(true)
+    try {
+      // Check if user is authenticated
+      if (!authService.isAuthenticated()) {
+        setBookingError('Silakan login terlebih dahulu untuk melanjutkan booking.')
+        router.push('/login')
+        return
+      }
+
+      // Create booking in database
+      const bookingData = {
+        room_id: room.id,
+        hotel_id: hotel.id,
+        check_in: checkIn,
+        check_out: checkOut,
+        guests_count: guests,
+        voucher_code: selectedVoucherCode,
+      }
+
+      const response = await bookingService.createBooking(bookingData)
+      // API response structure: { success, message, data: { booking, payment, checkout_url } }
+      const payload = response?.data?.data || response?.data || response || {}
+      const booking = payload?.booking || payload?.Booking || payload?.data?.booking || payload?.data?.Booking
+      const payment = payload?.payment || payload?.Payment || payload?.data?.payment || payload?.data?.Payment
+      
+      if (!booking?.id) {
+        setBookingError('Gagal membuat booking. Silakan coba lagi.')
+        return
+      }
+
+      const paymentId = payment?.id || payload?.payment_id || payload?.paymentId || payload?.data?.payment_id || payload?.data?.paymentId
+      const checkoutUrl =
+        payload?.checkout_url ||
+        payload?.redirect_url ||
+        payload?.checkoutUrl ||
+        payload?.data?.checkout_url ||
+        payload?.data?.redirect_url ||
+        payload?.data?.checkoutUrl ||
+        payment?.checkout_url ||
+        payment?.redirect_url ||
+        payment?.checkoutUrl
+
+      // If Midtrans checkout URL is provided, redirect user immediately to Midtrans
+      if (checkoutUrl) {
+        window.location.assign(checkoutUrl)
+        return
+      }
+
+      if (paymentId) {
+        await router.push(`/payment/${paymentId}`)
+        return
+      }
+
+      setBookingError('Midtrans checkout belum tersedia. Silakan coba lagi.')
+    } catch (error) {
+      const errorMessage = error?.response?.data?.message || error?.message || 'Gagal membuat booking. Silakan coba lagi.'
+      setBookingError(errorMessage)
+    } finally {
+      setBookingLoading(false)
+    }
+  }
+
+  const applyVoucher = async () => {
+    const code = voucher.trim().toUpperCase()
+    if (!code) {
       setVoucherErr(true)
       setVoucherApplied(false)
+      setVoucherMessage('Masukkan kode voucher terlebih dahulu.')
+      return
+    }
+
+    setVoucherLoading(true)
+    try {
+      const result = await voucherService.validateVoucher(code, {
+        booking_amount: basePrice,
+        hotel_id: hotel.id,
+        room_type: room?.name,
+      })
+
+      if (!result?.valid) {
+        setVoucherErr(true)
+        setVoucherApplied(false)
+        setVoucherDiscount(0)
+        setVoucherMessage(result?.message || 'Kode voucher tidak valid.')
+        return
+      }
+
+      setVoucherApplied(true)
+      setVoucherErr(false)
+      setVoucherDiscount(Number(result?.discount || 0))
+      setVoucherMessage(result?.message || `Voucher ${code} berhasil diterapkan.`)
+    } catch (error) {
+      setVoucherErr(true)
+      setVoucherApplied(false)
+      setVoucherDiscount(0)
+      const message = typeof error === 'string'
+        ? error
+        : error?.message || 'Gagal memvalidasi voucher.'
+      setVoucherMessage(message)
+    } finally {
+      setVoucherLoading(false)
     }
   }
 
@@ -71,7 +330,7 @@ export default function BookingPanel({ hotel, onMembership, onVoucher }) {
             <div><span>Check-out</span><strong>{fmt(checkOut)}</strong></div>
             <div><span>Room</span><strong>{selectedRoom}</strong></div>
             <div><span>Guests</span><strong>{guests}</strong></div>
-            <div><span>Total</span><strong>£{total.toLocaleString()}</strong></div>
+            <div><span>Total</span><strong>{rupiah(total)}</strong></div>
           </div>
           <button className={styles.newBookingBtn} onClick={() => setBooked(false)}>
             Modify Booking
@@ -87,7 +346,7 @@ export default function BookingPanel({ hotel, onMembership, onVoucher }) {
         <div className={styles.priceDisplay}>
           <span className={styles.from}>From</span>
           <div className={styles.priceNum}>
-            <span>£</span><strong>{hotel.price.toLocaleString()}</strong>
+            <span>Rp</span><strong>{money(hotel.price)}</strong>
           </div>
           <span className={styles.perNight}>/ night</span>
         </div>
@@ -113,6 +372,11 @@ export default function BookingPanel({ hotel, onMembership, onVoucher }) {
             min={addDays(t, 1)}
             onChange={e => {
               setCheckIn(e.target.value)
+              setVoucher('')
+              setVoucherApplied(false)
+              setVoucherDiscount(0)
+              setVoucherErr(false)
+              setVoucherMessage('')
               if (e.target.value >= checkOut) setCheckOut(addDays(e.target.value, 3))
             }}
           />
@@ -128,7 +392,14 @@ export default function BookingPanel({ hotel, onMembership, onVoucher }) {
             type="date"
             value={checkOut}
             min={addDays(checkIn, 1)}
-            onChange={e => setCheckOut(e.target.value)}
+            onChange={e => {
+              setCheckOut(e.target.value)
+              setVoucher('')
+              setVoucherApplied(false)
+              setVoucherDiscount(0)
+              setVoucherErr(false)
+              setVoucherMessage('')
+            }}
           />
         </div>
       </div>
@@ -141,43 +412,70 @@ export default function BookingPanel({ hotel, onMembership, onVoucher }) {
       </div>
 
       <div className={styles.guestRow}>
-        <label>Guests</label>
+        <label>Guests <span style={{ color: '#999', fontWeight: 500 }}>(max {maxGuests})</span></label>
         <div className={styles.guestStepper}>
           <button onClick={() => setGuests(g => Math.max(1, g - 1))}>−</button>
           <span>{guests}</span>
-          <button onClick={() => setGuests(g => Math.min(8, g + 1))}>+</button>
+          <button onClick={() => setGuests(g => Math.min(maxGuests, g + 1))}>+</button>
         </div>
       </div>
 
       <div className={styles.roomSelect}>
         <label>Room Type</label>
-        <select value={selectedRoom} onChange={e => setSelectedRoom(e.target.value)}>
+        <select
+          value={selectedRoom}
+          onChange={e => {
+            setSelectedRoom(e.target.value)
+            setVoucher('')
+            setVoucherApplied(false)
+            setVoucherDiscount(0)
+            setVoucherErr(false)
+            setVoucherMessage('')
+          }}
+        >
           {rooms.filter(r => r.available).map(r => (
-            <option key={r.name} value={r.name}>{r.name} — £{r.price}/night</option>
+            <option key={r.name} value={r.name}>{r.name} — {rupiah(r.price)}/night</option>
           ))}
         </select>
       </div>
 
       <div className={styles.breakdown}>
         <div className={styles.breakdownRow}>
-          <span>£{(room?.price || hotel.price).toLocaleString()} × {nights} night{nights !== 1 ? 's' : ''}</span>
-          <span>£{basePrice.toLocaleString()}</span>
+          <span>{rupiah(room?.price || hotel.price)} × {nights} night{nights !== 1 ? 's' : ''}</span>
+          <span>{rupiah(basePrice)}</span>
         </div>
         <div className={styles.breakdownRow}>
           <span>Taxes & fees (10%)</span>
-          <span>£{taxes.toLocaleString()}</span>
+          <span>{rupiah(taxes)}</span>
         </div>
+        {hasMembershipDiscount && (
+          <div className={`${styles.breakdownRow} ${styles.discountRow}`}>
+            <span>{membershipDiscountLabel || 'Member'} discount</span>
+            <span>−{rupiah(membershipDiscount)}</span>
+          </div>
+        )}
         {voucherApplied && (
           <div className={`${styles.breakdownRow} ${styles.discountRow}`}>
             <span>Voucher discount</span>
-            <span>−£{discount.toLocaleString()}</span>
+            <span>−{rupiah(discount)}</span>
           </div>
         )}
         <div className={`${styles.breakdownRow} ${styles.totalRow}`}>
           <strong>Total</strong>
-          <strong>£{total.toLocaleString()}</strong>
+          <strong>{rupiah(total)}</strong>
         </div>
       </div>
+
+      {discountSummary.length > 0 && (
+        <div className={styles.savingsBanner}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+            <path d="M12 2v20M17 7H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H7" />
+          </svg>
+          <span>
+            {hasMembershipDiscount ? `Hemat ${rupiah(membershipDiscount)} dengan ${membershipDiscountLabel || 'membership'}.` : 'Membership aktif akan mendapat diskon otomatis.'}
+          </span>
+        </div>
+      )}
 
       <div className={styles.voucherBlock}>
         <label>Sanctuary Voucher</label>
@@ -186,19 +484,21 @@ export default function BookingPanel({ hotel, onMembership, onVoucher }) {
             type="text"
             placeholder="Enter code e.g. SL-SUMMER24"
             value={voucher}
-            onChange={e => { setVoucher(e.target.value); setVoucherErr(false); setVoucherApplied(false) }}
+            onChange={e => { setVoucher(e.target.value); setVoucherErr(false); setVoucherApplied(false); setVoucherMessage(''); setVoucherDiscount(0) }}
             className={voucherErr ? styles.voucherInputErr : voucherApplied ? styles.voucherInputOk : ''}
           />
-          <button onClick={applyVoucher}>Apply</button>
+          <button onClick={applyVoucher} disabled={voucherLoading}>{voucherLoading ? '...' : 'Apply'}</button>
         </div>
-        {voucherApplied && <p className={styles.voucherOk}>✓ £250 voucher applied</p>}
-        {voucherErr && <p className={styles.voucherErrMsg}>Invalid code. Try SL-SUMMER24</p>}
+        {voucherApplied && <p className={styles.voucherOk}>✓ {voucherMessage || 'Voucher applied'}</p>}
+        {voucherErr && <p className={styles.voucherErrMsg}>{voucherMessage || 'Invalid code.'}</p>}
         <button className={styles.viewVoucherLink} onClick={onVoucher}>View my vouchers →</button>
       </div>
 
-      <button className={styles.bookBtn} onClick={() => setBooked(true)}>
-        Reserve Now
+      <button className={styles.bookBtn} onClick={handleReserveNow} disabled={bookingLoading}>
+        {bookingLoading ? 'Processing...' : 'Reserve Now'}
       </button>
+
+      {bookingError && <p style={{ color: '#b42318', marginTop: 12, fontSize: 13 }}>{bookingError}</p>}
 
       <div className={styles.memberNote}>
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
@@ -206,7 +506,7 @@ export default function BookingPanel({ hotel, onMembership, onVoucher }) {
         </svg>
         <span>
           <a onClick={onMembership} style={{ cursor: 'pointer' }}>Sanctuary Club members</a>
-          {' '}get priority access & up to £1,500 in annual vouchers.
+          {' '}get priority access & up to Rp1.500.000 in annual vouchers.
         </span>
       </div>
     </div>

@@ -1,6 +1,34 @@
 import styles from '../HotelCard.module.css'
 
 const AMENITY_ICONS = {
+  wifi: (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" title="Wi-Fi">
+      <path d="M5 8.5a14 14 0 0 1 14 0" />
+      <path d="M8.5 12a9 9 0 0 1 7 0" />
+      <path d="M12 16.5h0" />
+    </svg>
+  ),
+  ac: (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" title="AC">
+      <path d="M4 6h16M6 10h12M8 14h8M10 18h4" />
+    </svg>
+  ),
+  parking: (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" title="Parkir">
+      <path d="M6 4v16" />
+      <path d="M6 4h7a4 4 0 0 1 0 8H6" />
+    </svg>
+  ),
+  restaurant: (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" title="Restoran">
+      <path d="M4 3v7" />
+      <path d="M7 3v7" />
+      <path d="M4 10v11" />
+      <path d="M10 3v18" />
+      <path d="M14 3v18" />
+      <path d="M18 3c0 4-2 6-2 10v8" />
+    </svg>
+  ),
   pool: (
     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" title="Kolam Renang">
       <path d="M2 12h20M2 12c1.5 0 2.5-1 4-1s2.5 1 4 1 2.5-1 4-1 2.5 1 4 1" />
@@ -35,10 +63,32 @@ const MOOD_COLORS = {
   Perkotaan: '#2a2a4a',
 }
 
+const MOOD_CLASSES = {
+  Pesisir: styles.moodPesisir,
+  Alam: styles.moodAlam,
+  Perkotaan: styles.moodPerkotaan,
+}
+
+const AMENITY_LABELS = {
+  wifi: 'Wi-Fi',
+  ac: 'AC',
+  parking: 'Parkir',
+  restaurant: 'Restoran',
+  pool: 'Kolam Renang',
+  spa: 'Spa',
+  gym: 'Gym',
+  dining: 'Restoran',
+  concierge: 'Concierge',
+}
+
 export default function HotelCard({ hotel, saved, onSave }) {
+  const cardStyle = hotel.bgImageUrl
+    ? { backgroundImage: `url(${hotel.bgImageUrl})`, backgroundSize: 'cover', backgroundPosition: 'center' }
+    : { background: hotel.bg }
+
   return (
     <div className={styles.card}>
-      <div className={styles.imgWrap} style={{ background: hotel.bg }}>
+      <div className={styles.imgWrap} style={cardStyle}>
         {hotel.featured && (
           <span className={styles.featuredBadge}>Pilihan Editor</span>
         )}
@@ -65,7 +115,7 @@ export default function HotelCard({ hotel, saved, onSave }) {
         </button>
 
         <span
-          className={styles.moodChip}
+          className={`${styles.moodChip} ${MOOD_CLASSES[hotel.mood] || ''}`}
           style={{ background: MOOD_COLORS[hotel.mood] || '#444' }}
         >
           {hotel.mood}
@@ -86,7 +136,7 @@ export default function HotelCard({ hotel, saved, onSave }) {
           </div>
           <div className={styles.priceBlock}>
             <div className={styles.price}>
-              <span>Rp</span><strong>{hotel.price.toLocaleString('id-ID')}</strong>
+              <span>Rp</span><strong>{Number(hotel.price).toLocaleString('id-ID')}</strong>
             </div>
             <span className={styles.perNight}>/ malam</span>
           </div>
@@ -100,8 +150,8 @@ export default function HotelCard({ hotel, saved, onSave }) {
 
         <div className={styles.amenities}>
           {hotel.amenities.map(a => (
-            <span key={a} className={styles.amenityIcon} title={a}>
-              {AMENITY_ICONS[a]}
+            <span key={a} className={styles.amenityIcon} title={AMENITY_LABELS[a] || a}>
+              {AMENITY_ICONS[a] || <span style={{ fontSize: 10, fontWeight: 600 }}>{AMENITY_LABELS[a] || a}</span>}
             </span>
           ))}
         </div>

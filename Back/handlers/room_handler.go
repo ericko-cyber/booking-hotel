@@ -4,6 +4,8 @@ import (
 	"Back/models"
 	"Back/repository"
 	"Back/utils"
+	"encoding/json"
+	"log"
 	"net/http"
 	"strconv"
 
@@ -47,6 +49,16 @@ func (h *RoomHandler) CreateRoom(c *gin.Context) {
 		return
 	}
 
+	if createReq.Currency == "" {
+		createReq.Currency = "IDR"
+	}
+	if createReq.RoomType == "" {
+		createReq.RoomType = "deluxe"
+	}
+	if createReq.Status == "" {
+		createReq.Status = "available"
+	}
+
 	// Verify hotel exists
 	hotel, err := h.hotelRepo.GetHotelByID(hotelIDInt)
 	if err != nil {
@@ -56,6 +68,9 @@ func (h *RoomHandler) CreateRoom(c *gin.Context) {
 		})
 		return
 	}
+
+	// Marshal facilities to JSON
+	facilitiesJSON, _ := json.Marshal(createReq.Facilities)
 
 	room := &models.Room{
 		HotelID:     hotelIDInt,
@@ -68,6 +83,7 @@ func (h *RoomHandler) CreateRoom(c *gin.Context) {
 		RoomType:    createReq.RoomType,
 		Status:      createReq.Status,
 		BookedCount: 0,
+		Facilities:  string(facilitiesJSON),
 	}
 
 	if err := h.roomRepo.CreateRoom(room); err != nil {
@@ -86,7 +102,7 @@ func (h *RoomHandler) CreateRoom(c *gin.Context) {
 	c.JSON(http.StatusCreated, utils.ApiResponse{
 		Success: true,
 		Message: "Room created successfully",
-		Data:    room,
+		Data:    room.ToRoomResponse(),
 	})
 }
 
@@ -114,7 +130,7 @@ func (h *RoomHandler) GetRoom(c *gin.Context) {
 	c.JSON(http.StatusOK, utils.ApiResponse{
 		Success: true,
 		Message: "Room retrieved successfully",
-		Data:    room,
+		Data:    room.ToRoomResponse(),
 	})
 }
 
@@ -175,6 +191,11 @@ func (h *RoomHandler) UpdateRoom(c *gin.Context) {
 	if updateReq.Status != "" {
 		room.Status = updateReq.Status
 	}
+	if len(updateReq.Facilities) > 0 {
+		facilitiesJSON, _ := json.Marshal(updateReq.Facilities)
+		room.Facilities = string(facilitiesJSON)
+		log.Printf("UpdateRoom payload for id=%d: facilities=%v, facilitiesJSON=%s", roomIDInt, updateReq.Facilities, room.Facilities)
+	}
 
 	if err := h.roomRepo.UpdateRoom(roomIDInt, room); err != nil {
 		c.JSON(http.StatusInternalServerError, utils.ApiResponse{
@@ -188,7 +209,7 @@ func (h *RoomHandler) UpdateRoom(c *gin.Context) {
 	c.JSON(http.StatusOK, utils.ApiResponse{
 		Success: true,
 		Message: "Room updated successfully",
-		Data:    room,
+		Data:    room.ToRoomResponse(),
 	})
 }
 
@@ -221,11 +242,17 @@ func (h *RoomHandler) ListRoomsByHotel(c *gin.Context) {
 
 	totalPages := (int(total) + pageSize - 1) / pageSize
 
+	// Convert rooms to response format
+	roomResponses := make([]models.RoomResponse, len(rooms))
+	for i, room := range rooms {
+		roomResponses[i] = room.ToRoomResponse()
+	}
+
 	c.JSON(http.StatusOK, utils.ApiResponse{
 		Success: true,
 		Message: "Rooms retrieved successfully",
 		Data: models.RoomListResponse{
-			Rooms:      rooms,
+			Rooms:      roomResponses,
 			Total:      total,
 			Page:       page,
 			PageSize:   pageSize,

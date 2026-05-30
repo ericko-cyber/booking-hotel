@@ -29,7 +29,12 @@ func (r *BookingRepository) CreateBooking(booking *models.Booking) error {
 // GetBookingByID retrieves a booking by ID
 func (r *BookingRepository) GetBookingByID(id int) (*models.Booking, error) {
 	var booking models.Booking
-	if err := r.db.First(&booking, id).Error; err != nil {
+	if err := r.db.
+		Select("bookings.*, hotels.name as hotel_name, rooms.name as room_name, hotels.location as location").
+		Joins("LEFT JOIN hotels ON hotels.id = bookings.hotel_id").
+		Joins("LEFT JOIN rooms ON rooms.id = bookings.room_id").
+		Where("bookings.id = ?", id).
+		First(&booking).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, errors.New("booking not found")
 		}
@@ -67,11 +72,19 @@ func (r *BookingRepository) ListBookingsByUser(userID int, page, pageSize int) (
 
 	offset := (page - 1) * pageSize
 
-	if err := r.db.Where("user_id = ?", userID).Count(&total).Error; err != nil {
+	if err := r.db.Model(&models.Booking{}).Where("user_id = ?", userID).Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
 
-	if err := r.db.Where("user_id = ?", userID).Offset(offset).Limit(pageSize).Order("created_at DESC").Find(&bookings).Error; err != nil {
+	if err := r.db.Model(&models.Booking{}).
+		Select("bookings.*, hotels.name as hotel_name, rooms.name as room_name, hotels.location as location").
+		Joins("JOIN hotels ON hotels.id = bookings.hotel_id").
+		Joins("JOIN rooms ON rooms.id = bookings.room_id").
+		Where("bookings.user_id = ?", userID).
+		Offset(offset).
+		Limit(pageSize).
+		Order("bookings.created_at DESC").
+		Find(&bookings).Error; err != nil {
 		return nil, 0, err
 	}
 
@@ -85,11 +98,42 @@ func (r *BookingRepository) ListBookingsByHotel(hotelID int, page, pageSize int)
 
 	offset := (page - 1) * pageSize
 
-	if err := r.db.Where("hotel_id = ?", hotelID).Count(&total).Error; err != nil {
+	if err := r.db.Model(&models.Booking{}).Where("hotel_id = ?", hotelID).Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
 
-	if err := r.db.Where("hotel_id = ?", hotelID).Offset(offset).Limit(pageSize).Order("created_at DESC").Find(&bookings).Error; err != nil {
+	if err := r.db.Model(&models.Booking{}).Where("hotel_id = ?", hotelID).Offset(offset).Limit(pageSize).Order("created_at DESC").Find(&bookings).Error; err != nil {
+		return nil, 0, err
+	}
+
+	return bookings, total, nil
+}
+
+// ListBookingsByOwner retrieves bookings for all hotels owned by a specific owner
+func (r *BookingRepository) ListBookingsByOwner(ownerID int, page, pageSize int) ([]models.Booking, int64, error) {
+	var bookings []models.Booking
+	var total int64
+
+	offset := (page - 1) * pageSize
+
+	baseQuery := r.db.Model(&models.Booking{}).
+		Joins("JOIN hotels ON hotels.id = bookings.hotel_id").
+		Joins("JOIN rooms ON rooms.id = bookings.room_id").
+		Where("hotels.owner_id = ?", ownerID)
+
+	if err := baseQuery.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+
+	if err := r.db.Model(&models.Booking{}).
+		Select("bookings.*, hotels.name as hotel_name, rooms.name as room_name").
+		Joins("JOIN hotels ON hotels.id = bookings.hotel_id").
+		Joins("JOIN rooms ON rooms.id = bookings.room_id").
+		Where("hotels.owner_id = ?", ownerID).
+		Offset(offset).
+		Limit(pageSize).
+		Order("bookings.created_at DESC").
+		Find(&bookings).Error; err != nil {
 		return nil, 0, err
 	}
 
@@ -107,7 +151,14 @@ func (r *BookingRepository) ListAllBookings(page, pageSize int) ([]models.Bookin
 		return nil, 0, err
 	}
 
-	if err := r.db.Offset(offset).Limit(pageSize).Order("created_at DESC").Find(&bookings).Error; err != nil {
+	if err := r.db.Model(&models.Booking{}).
+		Select("bookings.*, hotels.name as hotel_name, rooms.name as room_name, hotels.location as location").
+		Joins("LEFT JOIN hotels ON hotels.id = bookings.hotel_id").
+		Joins("LEFT JOIN rooms ON rooms.id = bookings.room_id").
+		Offset(offset).
+		Limit(pageSize).
+		Order("bookings.created_at DESC").
+		Find(&bookings).Error; err != nil {
 		return nil, 0, err
 	}
 
@@ -131,11 +182,11 @@ func (r *BookingRepository) GetBookingsByStatus(status string, page, pageSize in
 
 	offset := (page - 1) * pageSize
 
-	if err := r.db.Where("status = ?", status).Count(&total).Error; err != nil {
+	if err := r.db.Model(&models.Booking{}).Where("status = ?", status).Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
 
-	if err := r.db.Where("status = ?", status).Offset(offset).Limit(pageSize).Order("created_at DESC").Find(&bookings).Error; err != nil {
+	if err := r.db.Model(&models.Booking{}).Where("status = ?", status).Offset(offset).Limit(pageSize).Order("created_at DESC").Find(&bookings).Error; err != nil {
 		return nil, 0, err
 	}
 
@@ -152,10 +203,10 @@ func (r *BookingRepository) GetBookingsBetweenDates(hotelID int, startDate, endD
 }
 
 // CheckRoomAvailability checks if a room is available for the given dates
-func (r *BookingRepository) CheckRoomAvailability(roomID int, checkIn, checkOut time.Time) (bool, error) {
+func (r *BookingRepository) CheckRoomAvailability(roomID int, checkIn, checkOut time.Time, roomStock int) (bool, error) {
 	var count int64
-	if err := r.db.Where("room_id = ? AND check_in < ? AND check_out > ? AND status != ?", roomID, checkOut, checkIn, "cancelled").Count(&count).Error; err != nil {
+	if err := r.db.Model(&models.Booking{}).Where("room_id = ? AND check_in < ? AND check_out > ? AND status != ?", roomID, checkOut, checkIn, "cancelled").Count(&count).Error; err != nil {
 		return false, err
 	}
-	return count == 0, nil
+	return int(count) < roomStock, nil
 }

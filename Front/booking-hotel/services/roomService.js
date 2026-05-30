@@ -1,5 +1,22 @@
 import api from '../lib/api'
 
+const parseFacilities = (value) => {
+  if (Array.isArray(value)) return value
+  if (typeof value !== 'string' || value.length === 0) return []
+  try {
+    const parsed = JSON.parse(value)
+    return Array.isArray(parsed) ? parsed : []
+  } catch {
+    return []
+  }
+}
+
+const normalizeRoom = (room) => ({
+  ...room,
+  hotelId: room?.hotelId ?? room?.hotel_id,
+  facilities: parseFacilities(room?.facilities),
+})
+
 export const roomService = {
   // Get room by ID
   getRoomById: async (id) => {
@@ -35,7 +52,9 @@ export const roomService = {
   getRoomsByHotel: async (hotelId, params = {}) => {
     try {
       const response = await api.get(`/hotels/${hotelId}/rooms`, { params })
-      return response.data || []
+      const payload = response?.data || response
+      const rooms = payload?.rooms || payload || []
+      return Array.isArray(rooms) ? rooms.map(normalizeRoom) : []
     } catch (error) {
       throw error
     }

@@ -1,16 +1,18 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import OwnerLayout from './OwnerLayout'
 import { PageHeader, StatusBadge, Btn, Modal, Empty } from './OwnerUI'
-import { OWNER_BOOKINGS, OWNER_HOTELS, CURRENT_OWNER } from './OwnerData'
+import { bookingService } from '../../services/bookingService'
+import { hotelService } from '../../services/hotelService'
 import styles from '../Bookings.module.css'
 
 export default function OwnerBookings() {
   const [statusFilter, setStatusFilter] = useState('all')
   const [dateFilter, setDateFilter] = useState('')
   const [detail, setDetail] = useState(null)
-
-  const myHotelIds = OWNER_HOTELS.filter((h) => h.ownerId === CURRENT_OWNER.id).map((h) => h.id)
-  const myBookings = OWNER_BOOKINGS.filter((b) => myHotelIds.includes(b.hotelId))
+  const [myBookings, setMyBookings] = useState([])
+  const [myHotels, setMyHotels] = useState([])
+  const myHotelIds = myHotels.map((h) => h.id)
+  const [loadingDetail, setLoadingDetail] = useState(false)
 
   const filtered = myBookings.filter(b => {
     if (statusFilter !== 'all' && b.status !== statusFilter) return false
@@ -23,6 +25,41 @@ export default function OwnerBookings() {
     paid: myBookings.filter(b => b.status === 'paid').length,
     pending: myBookings.filter(b => b.status === 'pending').length,
     cancelled: myBookings.filter(b => b.status === 'cancelled').length,
+  }
+
+  useEffect(() => {
+    let mounted = true
+    const load = async () => {
+      try {
+        const [hs, bs] = await Promise.all([hotelService.getOwnerHotels(), bookingService.getOwnerBookings()])
+        if (mounted) {
+          setMyHotels(hs)
+          setMyBookings(bs)
+        }
+      } catch (err) {
+        console.error('Failed to load owner bookings/hotels', err)
+      }
+    }
+    load()
+    return () => { mounted = false }
+  }, [])
+
+  const openDetail = async (b) => {
+    setLoadingDetail(true)
+    try {
+      const res = await bookingService.getBookingById(b.id)
+      // backend ApiResponse: { success, message, data }
+      const payload = res?.data || res?.Data || res
+      const booking = payload?.booking || payload
+      const payment = payload?.payment || null
+      const merged = { ...b, ...(booking || {}), payment }
+      setDetail(merged)
+    } catch (err) {
+      console.error('Failed to load booking detail', err)
+      setDetail(b)
+    } finally {
+      setLoadingDetail(false)
+    }
   }
 
   return (
@@ -76,27 +113,28 @@ export default function OwnerBookings() {
           <table className={styles.table}>
             <thead>
               <tr>
-                <th>Booking ID</th><th>Guest</th><th>Hotel</th><th>Room</th>
+                <th>Booking ID</th><th>Guest</th><th>Hotel</th><th>Room</th><th>Payment</th>
                 <th>Check-in</th><th>Check-out</th><th>Nights</th><th>Total</th><th>Status</th><th></th>
               </tr>
             </thead>
             <tbody>
               {filtered.map(b => (
-                <tr key={b.id} className={styles.tr} onClick={() => setDetail(b)}>
+                <tr key={b.id} className={styles.tr} onClick={() => openDetail(b)}>
                   <td className={styles.tdId}>{b.id}</td>
                   <td className={styles.tdGuest}>
-                    <div className={styles.guestAvatar}>{b.guest.split(' ').map(n => n[0]).join('')}</div>
+                    <div className={styles.guestAvatar}>{String(b.guest || 'Guest').split(' ').map(n => n[0]).join('')}</div>
                     {b.guest}
                   </td>
-                  <td className={styles.tdMuted}>{b.hotel}</td>
-                  <td className={styles.tdMuted}>{b.room}</td>
+                    <td className={styles.tdMuted}>{b.hotel}</td>
+                    <td className={styles.tdMuted}>{b.room}</td>
+                    <td className={styles.tdMuted}>{(b.payment_status || b.paymentStatus || 'unpaid').toString()}</td>
                   <td className={styles.tdDate}>{b.checkIn}</td>
                   <td className={styles.tdDate}>{b.checkOut}</td>
                   <td className={styles.tdCenter}>{b.nights}n</td>
-                  <td className={styles.tdPrice}>£{b.total.toLocaleString()}</td>
+                  <td className={styles.tdPrice}>£{Number(b.total || 0).toLocaleString()}</td>
                   <td><StatusBadge status={b.status} /></td>
                   <td>
-                    <Btn variant="ghost" small onClick={e => { e.stopPropagation(); setDetail(b) }}>Details</Btn>
+                      <Btn variant="ghost" small onClick={e => { e.stopPropagation(); openDetail(b) }}>Details</Btn>
                   </td>
                 </tr>
               ))}
@@ -116,6 +154,24 @@ export default function OwnerBookings() {
               </div>
               <StatusBadge status={detail.status} />
             </div>
+            {detail.payment && (
+              <div className={styles.paymentSection} style={{marginTop:12}}>
+                <h4 style={{margin: '8px 0'}}>Payment Details</h4>
+                <div className={styles.detailGrid}>
+                  {[
+                    ['Status', detail.payment.status || detail.payment.Status || '-'],
+                    ['Amount', `£${Number(detail.payment.amount || detail.payment.Amount || detail.total || 0).toLocaleString()}`],
+                    ['Method', detail.payment.payment_method?.String || detail.payment.payment_method || detail.payment.PaymentMethod || '-'],
+                    ['Transaction', detail.payment.transaction_id?.String || detail.payment.transaction_id || detail.payment.TransactionID || '-'],
+                  ].map(([label, value]) => (
+                    <div key={label} className={styles.detailItem}>
+                      <span>{label}</span>
+                      <strong>{value}</strong>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
             <div className={styles.detailGrid}>
               {[
                 ['Hotel', detail.hotel],
@@ -123,7 +179,7 @@ export default function OwnerBookings() {
                 ['Check-in', detail.checkIn],
                 ['Check-out', detail.checkOut],
                 ['Duration', `${detail.nights} nights`],
-                ['Total Amount', `£${detail.total.toLocaleString()}`],
+                ['Total Amount', `£${Number(detail.total || 0).toLocaleString()}`],
               ].map(([label, value]) => (
                 <div key={label} className={styles.detailItem}>
                   <span>{label}</span>

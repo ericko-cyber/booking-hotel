@@ -1,12 +1,22 @@
 import api from '../lib/api'
 
+const extractAuthPayload = (response) => {
+  if (!response) return {}
+  if (response?.data?.token || response?.data?.user) return response.data
+  if (response?.token || response?.user) return response
+  return {}
+}
+
 export const authService = {
   login: async (email, password) => {
     try {
       const response = await api.post('/auth/login', { email, password })
-      if (response.data?.token) {
-        localStorage.setItem('token', response.data.token)
-        localStorage.setItem('user', JSON.stringify(response.data.user))
+      const payload = extractAuthPayload(response)
+      if (payload.token) {
+        localStorage.setItem('token', payload.token)
+      }
+      if (payload.user) {
+        localStorage.setItem('user', JSON.stringify(payload.user))
       }
       return response
     } catch (error) {
@@ -23,9 +33,12 @@ export const authService = {
         role: accountType === 'owner' ? 'owner' : 'user',
       }
       const response = await api.post('/auth/register', payload)
-      if (response.data?.token) {
-        localStorage.setItem('token', response.data.token)
-        localStorage.setItem('user', JSON.stringify(response.data.user))
+      const authPayload = extractAuthPayload(response)
+      if (authPayload.token) {
+        localStorage.setItem('token', authPayload.token)
+      }
+      if (authPayload.user) {
+        localStorage.setItem('user', JSON.stringify(authPayload.user))
       }
       return response
     } catch (error) {
@@ -50,8 +63,9 @@ export const authService = {
   updateProfile: async (data) => {
     try {
       const response = await api.put('/auth/profile', data)
-      if (response.data?.user) {
-        localStorage.setItem('user', JSON.stringify(response.data.user))
+      const payload = response?.data || response
+      if (payload?.user) {
+        localStorage.setItem('user', JSON.stringify(payload.user))
       }
       return response
     } catch (error) {
@@ -62,8 +76,9 @@ export const authService = {
   refreshToken: async () => {
     try {
       const response = await api.post('/auth/refresh')
-      if (response.data?.token) {
-        localStorage.setItem('token', response.data.token)
+      const payload = response?.data || response
+      if (payload?.token) {
+        localStorage.setItem('token', payload.token)
       }
       return response
     } catch (error) {

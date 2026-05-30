@@ -1,20 +1,61 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import OwnerLayout from './OwnerLayout'
 import { PageHeader, StatusBadge, Btn, Modal, Field, Input, Textarea, Select, Confirm, Empty } from './OwnerUI'
-import { OWNER_HOTELS as INIT, CURRENT_OWNER } from './OwnerData'
+import { CURRENT_OWNER } from './OwnerData'
+import { hotelService } from '../../services/hotelService'
 import styles from './Hotels.module.css'
 
-const BLANK = { name: '', address: '', description: '', photo: '', status: 'pending' }
-const PHOTO_OPTIONS = [
-  { label: 'Warm Amber', value: 'linear-gradient(135deg,#3a2a1a 0%,#6b4a2a 60%,#8a6a40 100%)' },
-  { label: 'Ocean Blue', value: 'linear-gradient(135deg,#1a3a5a 0%,#2a6a9a 60%,#4a8aba 100%)' },
-  { label: 'Forest Green', value: 'linear-gradient(135deg,#1a4a1a 0%,#2d7a3a 60%,#4a9a50 100%)' },
-  { label: 'Dusk Purple', value: 'linear-gradient(135deg,#2a1a3a 0%,#5a3a6a 60%,#8a5a8a 100%)' },
-  { label: 'Slate Steel', value: 'linear-gradient(135deg,#1a2a3a 0%,#2a4a6a 60%,#4a6a8a 100%)' },
-]
+const API_ORIGIN = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api').replace(/\/api\/?$/, '')
+
+const BLANK = { name: '', location: '', address: '', city: '', province: '', country: '', description: '', images: ['', '', ''], imageFiles: [null, null, null], amenities: [], status: 'pending', suasana: '' }
+
+const parseStoredImages = (value) => {
+  if (!value) return ['', '', '']
+  if (Array.isArray(value)) return [...value, '', '', ''].slice(0, 3)
+  if (typeof value !== 'string') return ['', '', '']
+  try {
+    const parsed = JSON.parse(value)
+    if (Array.isArray(parsed)) return [...parsed, '', '', ''].slice(0, 3)
+  } catch {
+    return [value, '', '']
+  }
+  return ['', '', '']
+}
+
+const parseMaybeArray = (value) => {
+  if (Array.isArray(value)) return value
+  if (!value) return []
+  if (typeof value === 'string') {
+    try {
+      const parsed = JSON.parse(value)
+      return Array.isArray(parsed) ? parsed : []
+    } catch {
+      return []
+    }
+  }
+  return []
+}
+
+const getPrimaryImage = (value) => parseStoredImages(value)[0]
+
+const resolveImageUrl = (value) => {
+  if (!value) return ''
+  if (value.startsWith('http') || value.startsWith('data:') || value.startsWith('blob:')) return value
+  if (value.startsWith('/')) return `${API_ORIGIN}${value}`
+  return value
+}
+
+const getPreviewStyle = (value) => {
+  if (!value) return { background: 'linear-gradient(135deg,#3a2a1a 0%,#6b4a2a 60%,#8a6a40 100%)' }
+  const resolved = resolveImageUrl(value)
+  if (resolved.startsWith('http') || resolved.startsWith('data:') || resolved.startsWith('blob:')) {
+    return { backgroundImage: `url(${resolved})`, backgroundSize: 'cover', backgroundPosition: 'center' }
+  }
+  return { background: resolved }
+}
 
 export default function OwnerHotels() {
-  const [hotels, setHotels] = useState(INIT.filter((h) => h.ownerId === CURRENT_OWNER.id))
+  const [hotels, setHotels] = useState([])
   const [modal, setModal] = useState(null) // null | 'add' | hotel obj (edit)
   const [confirm, setConfirm] = useState(null) // hotel id
   const [detail, setDetail] = useState(null) // hotel obj
@@ -22,22 +63,82 @@ export default function OwnerHotels() {
 
   const set = k => e => setForm(f => ({ ...f, [k]: e.target.value }))
 
-  const openAdd = () => { setForm({ ...BLANK, photo: PHOTO_OPTIONS[0].value }); setModal('add') }
-  const openEdit = (h) => { setForm({ ...h }); setModal(h) }
+  const uploadImage = (index) => (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
 
-  const save = () => {
-    if (!form.name || !form.address) return
-    if (modal === 'add') {
-      setHotels(hs => [...hs, { ...form, ownerId: CURRENT_OWNER.id, id: Date.now(), status: 'pending', rooms: 0, createdAt: new Date().toISOString().split('T')[0] }])
-    } else {
-      setHotels(hs => hs.map(h => h.id === modal.id ? { ...h, ...form } : h))
-    }
-    setModal(null)
+    const previewUrl = URL.createObjectURL(file)
+    setForm(f => {
+      const nextImages = [...(f.images || ['', '', ''])]
+      const nextFiles = [...(f.imageFiles || [null, null, null])]
+      nextImages[index] = previewUrl
+      nextFiles[index] = file
+      return { ...f, images: nextImages, imageFiles: nextFiles }
+    })
   }
 
-  const remove = () => {
-    setHotels(hs => hs.filter(h => h.id !== confirm))
-    setConfirm(null)
+  const openAdd = () => { setForm({ ...BLANK, images: ['', '', ''], imageFiles: [null, null, null] }); setModal('add') }
+  const openEdit = (h) => { setForm({ ...BLANK, ...h, images: parseStoredImages(h.image), imageFiles: [null, null, null], amenities: parseMaybeArray(h.amenities), suasana: h.suasana || '', location: h.location || '' }); setModal(h) }
+  useEffect(() => {
+    let mounted = true
+    const load = async () => {
+      try {
+        const hs = await hotelService.getOwnerHotels()
+        if (mounted) setHotels(hs)
+      } catch (err) {
+        console.error('Failed to load owner hotels', err)
+      }
+    }
+    load()
+    return () => { mounted = false }
+  }, [])
+
+  const save = async () => {
+    if (!form.name || !form.address) return
+    try {
+      const uploadedImages = []
+      for (let index = 0; index < 3; index += 1) {
+        const file = form.imageFiles?.[index]
+        const currentValue = form.images?.[index]
+
+        if (file) {
+          const uploadResult = await hotelService.uploadHotelImage(file)
+          uploadedImages.push(uploadResult?.data?.url || uploadResult?.Data?.url || uploadResult?.url || '')
+        } else if (typeof currentValue === 'string' && currentValue && !currentValue.startsWith('blob:')) {
+          uploadedImages.push(currentValue)
+        }
+      }
+
+      const payload = {
+        ...form,
+        image: JSON.stringify(uploadedImages.filter(Boolean)),
+        amenities: parseMaybeArray(form.amenities),
+      }
+      console.log('Saving hotel payload:', payload)
+      let resp
+      if (modal === 'add') {
+        resp = await hotelService.createHotel(payload)
+      } else {
+        resp = await hotelService.updateHotel(modal.id, payload)
+      }
+      console.log('Save response:', resp)
+      const hs = await hotelService.getOwnerHotels()
+      console.log('Owner hotels after save:', hs)
+      setHotels(hs)
+      setModal(null)
+    } catch (err) {
+      console.error('Failed to save hotel', err)
+    }
+  }
+
+  const remove = async () => {
+    try {
+      await hotelService.deleteHotel(confirm)
+      setHotels(hs => hs.filter(h => h.id !== confirm))
+      setConfirm(null)
+    } catch (err) {
+      console.error('Failed to delete hotel', err)
+    }
   }
 
   return (
@@ -74,7 +175,7 @@ export default function OwnerHotels() {
         <div className={styles.grid}>
           {hotels.map(h => (
             <div key={h.id} className={styles.card}>
-              <div className={styles.cardImg} style={{ background: h.photo }}>
+              <div className={styles.cardImg} style={getPreviewStyle(getPrimaryImage(h.image))}>
                 <span className={`${styles.statusPill} ${h.status === 'approved' ? styles.pillGreen : h.status === 'pending' ? styles.pillAmber : styles.pillRed}`}>
                   {h.status}
                 </span>
@@ -123,18 +224,45 @@ export default function OwnerHotels() {
         <Field label="Hotel Name">
           <Input placeholder="e.g. The Grand Riviera" value={form.name} onChange={set('name')} />
         </Field>
+        <Field label="Location">
+          <Input placeholder="Neighborhood / area" value={form.location || ''} onChange={set('location')} />
+        </Field>
         <Field label="Address">
-          <Input placeholder="Street, City, Country" value={form.address} onChange={set('address')} />
+          <Input placeholder="Street and number" value={form.address} onChange={set('address')} />
+        </Field>
+        <Field label="City">
+          <Input placeholder="City" value={form.city || ''} onChange={set('city')} />
+        </Field>
+        <Field label="Province">
+          <Input placeholder="Province / State" value={form.province || ''} onChange={set('province')} />
+        </Field>
+        <Field label="Country">
+          <Input placeholder="Country" value={form.country || ''} onChange={set('country')} />
         </Field>
         <Field label="Description">
           <Textarea placeholder="Describe what makes this property exceptional..." value={form.description} onChange={set('description')} />
         </Field>
-        <Field label="Cover Photo Style" hint="Real image upload coming soon.">
-          <Select value={form.photo} onChange={set('photo')}>
-            {PHOTO_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+        <Field label="Suasana">
+          <Select value={form.suasana || ''} onChange={(e) => setForm(f => ({ ...f, suasana: e.target.value }))}>
+            <option value="">Pilih suasana</option>
+            <option value="Pesisir">Pesisir</option>
+            <option value="Alam">Alam</option>
+            <option value="Perkotaan">Perkotaan</option>
           </Select>
-          <div className={styles.photoPreview} style={{ background: form.photo }} />
         </Field>
+        <div className={styles.imageUploaderGroup}>
+          <p className={styles.fieldLabel}>Foto Hotel</p>
+          <p className={styles.fieldHint}>Upload 3 foto untuk ditampilkan di detail properti.</p>
+          <div className={styles.imageGrid}>
+            {(form.images || ['', '', '']).map((imageValue, index) => (
+              <div key={index} className={styles.imageSlot}>
+                <label className={styles.imageSlotLabel}>Foto {index + 1}</label>
+                <Input type="file" accept="image/*" onChange={uploadImage(index)} />
+                <div className={styles.photoPreview} style={getPreviewStyle(imageValue)} />
+              </div>
+            ))}
+          </div>
+        </div>
         <div className={styles.modalNote}>
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
             <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
@@ -155,12 +283,13 @@ export default function OwnerHotels() {
       <Modal open={!!detail} onClose={() => setDetail(null)} title="Property Details" width={500}>
         {detail && (
           <>
-            <div className={styles.detailImg} style={{ background: detail.photo }} />
+            <div className={styles.detailImg} style={getPreviewStyle(getPrimaryImage(detail.image))} />
             <div className={styles.detailRows}>
               {[
                 ['Hotel Name', detail.name],
                 ['Address', detail.address],
                 ['Status', <StatusBadge key="s" status={detail.status} />],
+                ['Suasana', detail.suasana || '-'],
                 ['Rooms', `${detail.rooms} room types`],
                 ['Added', detail.createdAt],
               ].map(([label, val]) => (

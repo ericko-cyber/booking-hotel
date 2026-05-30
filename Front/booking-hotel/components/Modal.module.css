@@ -2,7 +2,6 @@
   position: fixed;
   inset: 0;
   background: rgba(0, 0, 0, 0.6);
-  backdrop-filter: blur(6px);
   z-index: 999;
   display: flex;
   align-items: center;
@@ -97,6 +96,11 @@
   transform: translateY(-2px);
 }
 
+.planOwned {
+  background: linear-gradient(180deg, rgba(148, 163, 184, 0.08), rgba(255, 255, 255, 1));
+  border-color: rgba(148, 163, 184, 0.35);
+}
+
 .planSelected {
   border-color: var(--teal) !important;
   box-shadow: 0 0 0 4px rgba(13, 61, 74, 0.08);
@@ -124,6 +128,30 @@
   padding: 4px 12px;
   border-radius: 20px;
   white-space: nowrap;
+}
+
+.ownedBadge,
+.upgradeBadge {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 4px 10px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.ownedBadge {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.upgradeBadge {
+  background: rgba(13, 61, 74, 0.08);
+  color: var(--teal);
 }
 
 .planName {
@@ -221,6 +249,11 @@
 
 .nextBtn:hover {
   background: var(--teal-light);
+}
+
+.nextBtn:disabled {
+  cursor: not-allowed;
+  background: #94a3b8;
 }
 
 /* ---- Form Step ---- */

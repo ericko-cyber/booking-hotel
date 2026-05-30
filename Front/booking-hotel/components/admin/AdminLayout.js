@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useRouter } from 'next/router'
+import { authService } from '../../services/authService'
 import styles from './Adminlayout.module.css'
 
 const NAV = [
@@ -15,7 +16,7 @@ const NAV = [
 const GROUPS = [
   { label: 'Overview', keys: ['dashboard'] },
   { label: 'Management', keys: ['hotels', 'users', 'bookings'] },
-  { label: 'Platform', keys: ['vouchers', 'membership', 'analytics'] },
+  { label: 'Platform', keys: ['vouchers', 'membership'] },
 ]
 
 export default function AdminLayout({ children, active }) {
@@ -25,13 +26,13 @@ export default function AdminLayout({ children, active }) {
   const router = useRouter()
 
   const handleLogout = () => {
-    // Clear auth from localStorage if exists
     if (typeof window !== 'undefined') {
+      authService.logout()
       localStorage.removeItem('authToken')
       localStorage.removeItem('userRole')
       localStorage.removeItem('userEmail')
     }
-    // Redirect to login
+    setProfileOpen(false)
     router.push('/login')
   }
 
@@ -139,6 +140,9 @@ export default function AdminLayout({ children, active }) {
                 <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
               </svg>
               <span className={styles.notifBadge}>3</span>
+            </button>
+            <button type="button" className={styles.topbarLogout} onClick={handleLogout}>
+              Logout
             </button>
             <div className={styles.profileDropdown}>
               <button className={styles.adminAvtSmall} onClick={() => setProfileOpen(!profileOpen)}>A</button>

@@ -43,7 +43,10 @@ DB_PASSWORD=your_password
 DB_NAME=booking_hotel
 JWT_SECRET=your-secret-key-change-this
 SERVER_PORT=8080
+MIDTRANS_NOTIFICATION_URL=https://your-backend-ngrok-domain.ngrok-free.app/api/payments/midtrans/notification
 ```
+
+If you use ngrok for Midtrans sandbox testing, point it to the backend port (`8080`), not the frontend port (`3000`). The webhook endpoint is `POST /api/payments/midtrans/notification`.
 
 ### 3. Import Database Schema
 ```bash

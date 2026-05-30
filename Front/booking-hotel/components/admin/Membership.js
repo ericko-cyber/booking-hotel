@@ -1,369 +1,947 @@
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import AdminLayout from '../../components/admin/AdminLayout'
 import {
   PageHeader, Badge, Btn, Card, CardTitle,
-  Modal, Field, Input, Select, Confirm, StatCard,
+  Modal, Field, Input, Select, Confirm, Search, Empty, StatCard,
 } from '../../components/admin/AdminUI'
-import { MEMBERSHIP_LEVELS as INIT } from './AdminData'
+import { adminService } from '../../services/adminService'
+import { benefitService } from '../../services/benefitService'
+import { voucherService } from '../../services/voucherService'
 import styles from './Membership.module.css'
 
-const TIER_COLORS = [
-  { label: 'Grey (Basic)',    value: '#888888' },
-  { label: 'Silver',         value: '#9aa0a6' },
-  { label: 'Gold',           value: '#c49a3c' },
-  { label: 'Navy (Luminary)',value: '#1b4d5c' },
-  { label: 'Purple',         value: '#6a2aaa' },
-  { label: 'Rose',           value: '#c0392b' },
+const MEMBERSHIP_TIERS = [
+  { id: 'silver', name: 'Silver', color: '#9aa0a6', icon: '🥈' },
+  { id: 'gold', name: 'Gold', color: '#c49a3c', icon: '🥇' },
+  { id: 'platinum', name: 'Platinum', color: '#1b4d5c', icon: '👑' },
 ]
 
-const BLANK = { name: '', discount: '', minSpend: '', color: '#888888', benefits: [''] }
+const MEMBERSHIP_DISCOUNT_DEFAULTS = {
+  silver: 5,
+  gold: 10,
+  platinum: 15,
+}
+
+const BLANK_DISCOUNT = { tier: '', title: '', description: '', discount: '', expiry: '', status: 'active' }
+const BLANK_VOUCHER = {
+  tier: '',
+  code: '',
+  type: 'percent',
+  value: '',
+  scope: 'global',
+  hotelId: '',
+  roomType: '',
+  usageLimit: '',
+  voucherID: '',
+  title: '',
+  description: '',
+  expiry: '',
+  status: 'active',
+}
+
+const formatDate = value => {
+  if (!value) return '-'
+  const date = new Date(value)
+  return Number.isNaN(date.getTime()) ? '-' : date.toLocaleDateString('id-ID')
+}
+
+const formatRawDate = value => {
+  if (!value) return '-'
+  const date = new Date(value)
+  return Number.isNaN(date.getTime()) ? '-' : date.toLocaleDateString('id-ID', {
+    year: 'numeric',
+    month: 'short',
+    day: '2-digit',
+  })
+}
+
+const formatText = value => (value == null || value === '' ? '-' : String(value))
+
+const extractPercentFromText = value => {
+  if (!value) return null
+  const match = String(value).match(/(\d+(?:\.\d+)?)\s*%/)
+  if (!match) return null
+
+  const parsed = Number(match[1])
+  return Number.isNaN(parsed) ? null : parsed
+}
+
+const resolveDiscountPercent = benefit => {
+  const raw =
+    benefit?.discountPercent ??
+    benefit?.discount_percent ??
+    benefit?.discountValue ??
+    benefit?.discount_value ??
+    benefit?.value ??
+    benefit?.discount ??
+    null
+
+  if (raw != null && raw !== '') {
+    const value = typeof raw === 'string'
+      ? Number(raw.replace(/%/g, '').replace(/,/g, '').trim())
+      : Number(raw)
+
+    if (!Number.isNaN(value) && value > 0) {
+      return value
+    }
+  }
+
+  const textFallback = extractPercentFromText(benefit?.description) ?? extractPercentFromText(benefit?.title)
+  if (textFallback != null) {
+    return textFallback
+  }
+
+  const tierFallback = MEMBERSHIP_DISCOUNT_DEFAULTS[resolveBenefitTier(benefit)]
+  return tierFallback || 0
+}
+
+const resolveBenefitTier = benefit => {
+  return String(
+    benefit?.membershipTier ??
+    benefit?.membership_tier ??
+    benefit?.tier ??
+    ''
+  ).trim().toLowerCase()
+}
+
+const pickBestDiscountBenefit = (allDiscounts, tierId) => {
+  const normalizedTierId = String(tierId || '').trim().toLowerCase()
+  const candidates = allDiscounts.filter(item => resolveBenefitTier(item) === normalizedTierId)
+  if (!candidates.length) return null
+
+  const withValue = candidates.filter(item => resolveDiscountPercent(item) > 0)
+  if (withValue.length) {
+    return withValue.sort((a, b) => resolveDiscountPercent(b) - resolveDiscountPercent(a))[0]
+  }
+
+  return candidates[0]
+}
 
 export default function AdminMembership() {
-  const [levels, setLevels] = useState(INIT)
-  const [modal, setModal]   = useState(null) // null | 'add' | level-obj
+  const [membershipUsers, setMembershipUsers] = useState([])
+  const [memberSearch, setMemberSearch] = useState('')
+  const [memberLoading, setMemberLoading] = useState(true)
+  const [memberError, setMemberError] = useState('')
+
+  const [discounts, setDiscounts] = useState([])
+  const [vouchers, setVouchers] = useState([])
+  const [voucherCatalog, setVoucherCatalog] = useState([])
+  const [benefitsLoading, setBenefitsLoading] = useState(false)
+
+  const [tab, setTab] = useState('discounts')
+  const [search, setSearch] = useState('')
+  const [tierFilter, setTierFilter] = useState('all')
+  const [discountModal, setDiscountModal] = useState(null)
+  const [voucherModal, setVoucherModal] = useState(null)
   const [confirm, setConfirm] = useState(null)
-  const [form, setForm]     = useState(BLANK)
+  const [discountForm, setDiscountForm] = useState(BLANK_DISCOUNT)
+  const [voucherForm, setVoucherForm] = useState(BLANK_VOUCHER)
   const [errors, setErrors] = useState({})
+  const [saving, setSaving] = useState(false)
 
-  const totalMembers = levels.reduce((s, l) => s + l.members, 0)
+  // Load membership users
+  useEffect(() => {
+    let alive = true
 
-  const set = k => e => {
-    setForm(f => ({ ...f, [k]: e.target.value }))
-    setErrors(er => ({ ...er, [k]: '' }))
-  }
+    const loadUsers = async () => {
+      setMemberLoading(true)
+      setMemberError('')
 
-  /* Benefits helpers */
-  const setBenefit = (i, val) =>
-    setForm(f => ({ ...f, benefits: f.benefits.map((b, idx) => idx === i ? val : b) }))
-  const addBenefit = () =>
-    setForm(f => ({ ...f, benefits: [...f.benefits, ''] }))
-  const removeBenefit = i =>
-    setForm(f => ({ ...f, benefits: f.benefits.filter((_, idx) => idx !== i) }))
+      try {
+        const response = await adminService.getAllUsers({ limit: 100, page: 1 })
+        const items = Array.isArray(response?.items) ? response.items : []
 
-  /* Open */
-  const openAdd = () => { setForm(BLANK); setErrors({}); setModal('add') }
-  const openEdit = l => {
-    setForm({ ...l, discount: String(l.discount), minSpend: String(l.minSpend), benefits: [...l.benefits] })
-    setErrors({})
-    setModal(l)
-  }
-
-  /* Validate */
-  const validate = () => {
-    const e = {}
-    if (!form.name.trim())    e.name    = 'Name is required'
-    if (form.discount === '' || Number(form.discount) < 0 || Number(form.discount) > 50)
-      e.discount = 'Enter a discount between 0 and 50%'
-    if (form.minSpend === '' || Number(form.minSpend) < 0)
-      e.minSpend = 'Enter a valid minimum spend (≥ 0)'
-    if (form.benefits.some(b => !b.trim()))
-      e.benefits = 'Remove or fill all benefit fields'
-    setErrors(e)
-    return !Object.keys(e).length
-  }
-
-  /* Save */
-  const save = () => {
-    if (!validate()) return
-    const entry = {
-      ...form,
-      discount: Number(form.discount),
-      minSpend: Number(form.minSpend),
-      id: modal === 'add' ? Date.now() : modal.id,
-      members: modal === 'add' ? 0 : modal.members,
-      benefits: form.benefits.filter(b => b.trim()),
+        if (alive) {
+          setMembershipUsers(items)
+        }
+      } catch (error) {
+        if (alive) {
+          setMemberError(error?.message || 'Failed to load membership users')
+        }
+      } finally {
+        if (alive) {
+          setMemberLoading(false)
+        }
+      }
     }
-    if (modal === 'add') setLevels(ls => [...ls, entry])
-    else setLevels(ls => ls.map(l => l.id === modal.id ? entry : l))
-    setModal(null)
+
+    loadUsers()
+
+    return () => {
+      alive = false
+    }
+  }, [])
+
+  useEffect(() => {
+    let alive = true
+
+    const loadVoucherCatalog = async () => {
+      try {
+        const list = await voucherService.getAdminVouchers()
+        if (alive) {
+          setVoucherCatalog(Array.isArray(list) ? list : [])
+          setVouchers(Array.isArray(list) ? list : [])
+        }
+      } catch (error) {
+        console.error('Failed to load voucher catalog:', error)
+      }
+    }
+
+    loadVoucherCatalog()
+
+    return () => {
+      alive = false
+    }
+  }, [])
+
+  // Load benefits
+  useEffect(() => {
+    let alive = true
+
+    const loadBenefits = async () => {
+      setBenefitsLoading(true)
+
+      try {
+        const benefits = await benefitService.getBenefits({ status: 'active' })
+        if (alive) {
+          const discountBenefits = benefits.filter(b => b.type === 'discount')
+          setDiscounts(discountBenefits)
+        }
+      } catch (error) {
+        console.error('Failed to load benefits:', error)
+      } finally {
+        if (alive) {
+          setBenefitsLoading(false)
+        }
+      }
+    }
+
+    loadBenefits()
+
+    return () => {
+      alive = false
+    }
+  }, [])
+
+  const setDiscountField = key => event => {
+    setDiscountForm(form => ({ ...form, [key]: event.target.value }))
+    setErrors(prev => ({ ...prev, [key]: '' }))
   }
 
-  /* Delete */
-  const remove = () => {
-    setLevels(ls => ls.filter(l => l.id !== confirm))
-    setConfirm(null)
+  const setVoucherField = key => event => {
+    setVoucherForm(form => ({ ...form, [key]: event.target.value }))
+    setErrors(prev => ({ ...prev, [key]: '' }))
   }
+
+  const openAddDiscount = (tier) => {
+    setDiscountForm({ ...BLANK_DISCOUNT, tier })
+    setErrors({})
+    setDiscountModal('add')
+  }
+
+  const openEditDiscount = discount => {
+    setDiscountForm({
+      tier: discount.membershipTier,
+      title: discount.title,
+      description: discount.description || '',
+      discount: String(resolveDiscountPercent(discount)),
+      expiry: discount.expiryDate ? discount.expiryDate.split('T')[0] : (discount.expiry_date ? String(discount.expiry_date).split('T')[0] : ''),
+      status: discount.status,
+    })
+    setErrors({})
+    setDiscountModal(discount)
+  }
+
+  const validateDiscount = () => {
+    const nextErrors = {}
+    if (!discountForm.tier) nextErrors.tier = 'Tier is required'
+    if (!discountForm.title.trim()) nextErrors.title = 'Title is required'
+    if (!discountForm.discount || Number(discountForm.discount) < 0 || Number(discountForm.discount) > 100) nextErrors.discount = 'Discount must be 0-100%'
+    setErrors(nextErrors)
+    return !Object.keys(nextErrors).length
+  }
+
+  const saveDiscount = async () => {
+    if (!validateDiscount()) return
+
+    setSaving(true)
+    try {
+      const benefitData = {
+        type: 'discount',
+        title: discountForm.title,
+        description: discountForm.description,
+        discount_percent: Number(discountForm.discount),
+        membership_tier: discountForm.tier,
+        scope: 'global',
+        expiry_date: discountForm.expiry || null,
+        status: discountForm.status,
+      }
+
+      let result
+      if (discountModal === 'add') {
+        result = await benefitService.createBenefit(benefitData)
+        console.log('Created benefit result:', result)
+        
+        // Ensure result has required fields
+        if (result && typeof result === 'object') {
+          if (!result.id) {
+            console.warn('Benefit created but missing id field:', result)
+            result = { ...result, id: result.id || Date.now() }
+          }
+          setDiscounts(list => [...list, result])
+        } else {
+          throw new Error('Invalid benefit response format')
+        }
+      } else {
+        result = await benefitService.updateBenefit(discountModal.id, benefitData)
+        console.log('Updated benefit result:', result)
+        setDiscounts(list => list.map(item => (item.id === discountModal.id ? result : item)))
+      }
+      setDiscountModal(null)
+    } catch (error) {
+      console.error('Error saving discount:', error)
+      setErrors({ submit: error?.message || 'Failed to save discount' })
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const removeDiscount = async () => {
+    if (!confirm) return
+    setSaving(true)
+    try {
+      await benefitService.deleteBenefit(confirm)
+      setDiscounts(list => list.filter(item => item.id !== confirm))
+      setConfirm(null)
+    } catch (error) {
+      console.error('Failed to delete discount:', error)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const openAddVoucher = () => {
+    setVoucherForm(BLANK_VOUCHER)
+    setErrors({})
+    setVoucherModal('add')
+  }
+
+  const openEditVoucher = voucher => {
+    setVoucherForm({
+      tier: voucher.membershipTier || voucher.membership_tier || '',
+      code: voucher.code || '',
+      type: voucher.type || voucher.benefitType || 'percent',
+      value: String(voucher.value ?? voucher.benefit ?? ''),
+      scope: voucher.scope || 'global',
+      hotelId: voucher.hotelId || voucher.hotel_id || '',
+      roomType: voucher.roomType || voucher.room_type || '',
+      usageLimit: String(voucher.usageLimit ?? voucher.quota ?? voucher.usage_limit ?? ''),
+      voucherID: String(voucher.id || ''),
+      description: voucher.description || '',
+      expiry: voucher.expiresAt ? String(voucher.expiresAt).split('T')[0] : (voucher.expiryDate ? String(voucher.expiryDate).split('T')[0] : (voucher.expiry_date ? String(voucher.expiry_date).split('T')[0] : '')),
+      status: voucher.status || 'active',
+    })
+    setErrors({})
+    setVoucherModal(voucher)
+  }
+
+  const validateVoucher = () => {
+    const nextErrors = {}
+    if (!voucherForm.tier) nextErrors.tier = 'Tier is required'
+
+    // For both add and edit modes: validate these fields
+    if (!voucherForm.code.trim()) nextErrors.code = 'Voucher code is required'
+    if (!voucherForm.type) nextErrors.type = 'Voucher type is required'
+    if (!voucherForm.value || Number(voucherForm.value) <= 0) nextErrors.value = 'Voucher value is required'
+    if (!voucherForm.scope) nextErrors.scope = 'Voucher scope is required'
+    if (!voucherForm.usageLimit || Number(voucherForm.usageLimit) < 1) nextErrors.usageLimit = 'Usage limit is required'
+
+    setErrors(nextErrors)
+    return !Object.keys(nextErrors).length
+  }
+
+  const saveVoucher = async () => {
+    if (!validateVoucher()) return
+
+    setSaving(true)
+    try {
+      if (voucherModal === 'add') {
+        // Saat add: buat voucher baru di tabel vouchers saja
+        const createdVoucher = await voucherService.createVoucher({
+          code: voucherForm.code.toUpperCase(),
+          type: voucherForm.type,
+          value: Number(voucherForm.value),
+          scope: voucherForm.scope,
+          membership_tier: voucherForm.tier,
+          hotel_id: voucherForm.scope === 'hotel' && voucherForm.hotelId ? Number(voucherForm.hotelId) : undefined,
+          room_type: voucherForm.scope === 'room_type' && voucherForm.roomType ? voucherForm.roomType : undefined,
+          expiry_date: voucherForm.expiry || null,
+          usage_limit: Number(voucherForm.usageLimit),
+          min_booking_amount: 0,
+          description: voucherForm.description || voucherForm.title,
+        })
+
+        const voucherId = Number(createdVoucher?.id || createdVoucher?.ID || 0)
+        if (!voucherId) {
+          throw new Error('Voucher created but no voucher ID returned from server')
+        }
+
+        // Update state dengan voucher baru
+        setVoucherCatalog(list => [...list, { ...createdVoucher, id: voucherId, code: createdVoucher.code || voucherForm.code.toUpperCase() }])
+        setVouchers(list => [...list, createdVoucher])
+      } else {
+        // Saat edit: update voucher yang sudah ada
+        const voucherId = Number(voucherForm.voucherID)
+        const updated = await voucherService.updateVoucher(voucherId, {
+          code: voucherForm.code.toUpperCase(),
+          type: voucherForm.type,
+          value: Number(voucherForm.value),
+          scope: voucherForm.scope,
+          membership_tier: voucherForm.tier,
+          hotel_id: voucherForm.scope === 'hotel' && voucherForm.hotelId ? Number(voucherForm.hotelId) : undefined,
+          room_type: voucherForm.scope === 'room_type' && voucherForm.roomType ? voucherForm.roomType : undefined,
+          expiry_date: voucherForm.expiry || null,
+          usage_limit: Number(voucherForm.usageLimit),
+          description: voucherForm.description || voucherForm.title,
+          status: voucherForm.status,
+        })
+
+        setVouchers(list => list.map(item => (item.id === voucherId ? updated : item)))
+      }
+
+      setVoucherModal(null)
+    } catch (error) {
+      setErrors({ submit: error?.message || 'Failed to save voucher' })
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const removeVoucher = async () => {
+    if (!confirm) return
+    setSaving(true)
+    try {
+      await voucherService.deleteVoucher(confirm)
+      setVouchers(list => list.filter(item => item.id !== confirm))
+      setConfirm(null)
+    } catch (error) {
+      console.error('Failed to delete voucher:', error)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const tierSummary = useMemo(() => {
+    return MEMBERSHIP_TIERS.map(tier => {
+      const discount = pickBestDiscountBenefit(discounts, tier.id)
+      return {
+        ...tier,
+        benefit: discount || null,
+        discount: discount ? resolveDiscountPercent(discount) : 0,
+      }
+    })
+  }, [discounts])
+
+  const filteredVouchers = useMemo(() => {
+    return vouchers.filter(voucher => {
+      const voucherTier = String(voucher.membershipTier || voucher.membership_tier || '').trim().toLowerCase()
+      if (!voucherTier || voucherTier === 'none') return false
+
+      const matchTier = tierFilter === 'all' || voucherTier === tierFilter
+      const matchSearch = !search || voucher.title.toLowerCase().includes(search.toLowerCase())
+      return matchTier && matchSearch
+    })
+  }, [vouchers, tierFilter, search])
+
+  const filteredMembers = useMemo(() => {
+    // only show users that have a membership tier (exclude 'none')
+    const base = membershipUsers.filter(user => user.membership_tier && user.membership_tier !== 'none')
+    const query = memberSearch.trim().toLowerCase()
+    if (!query) return base
+
+    return base.filter(user => {
+      return [user.name, user.email, user.role, user.membership_tier, user.membership_status]
+        .filter(Boolean)
+        .some(value => String(value).toLowerCase().includes(query))
+    })
+  }, [membershipUsers, memberSearch])
+
+  const totalDiscounts = discounts.length
+  const totalVouchers = vouchers.filter(voucher => String(voucher.membershipTier || voucher.membership_tier || '').trim().toLowerCase() !== 'none').length
+  const avgDiscount = discounts.length ? Math.round(discounts.reduce((sum, item) => sum + resolveDiscountPercent(item), 0) / discounts.length) : 0
+  const totalMembers = membershipUsers.filter(user => user.membership_tier && user.membership_tier !== 'none').length
+  const activeMembers = membershipUsers.filter(user => user.membership_tier !== 'none' && user.membership_status === 'active').length
 
   return (
     <AdminLayout active="membership">
       <PageHeader
-        eyebrow="Platform"
-        title="Membership Management"
-        subtitle={`${levels.length} tiers · ${totalMembers.toLocaleString()} total members`}
-        action={<Btn onClick={openAdd}>+ New Tier</Btn>}
+        eyebrow="Membership"
+        title="Membership Benefits"
+        subtitle="Kelola benefit membership dan lihat daftar pengguna langsung dari database"
       />
 
-      {/* ── Stats ── */}
       <div className={styles.statsRow}>
-        <StatCard
-          label="Total Members" value={totalMembers.toLocaleString()}
-          sub="Across all tiers" icon="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2 M9 7a4 4 0 1 0 0-8 4 4 0 0 0 0 8"
-          accent
-        />
-        <StatCard
-          label="Membership Tiers" value={levels.length}
-          sub="Active levels" icon="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"
-        />
-        <StatCard
-          label="Max Discount"
-          value={`${Math.max(...levels.map(l => l.discount))}%`}
-          sub={`${levels.find(l => l.discount === Math.max(...levels.map(l => l.discount)))?.name} tier`}
-          icon="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"
-        />
-        <StatCard
-          label="Premium Members"
-          value={(levels.filter(l => l.discount > 0).reduce((s,l) => s + l.members, 0)).toLocaleString()}
-          sub="Non-Basic members"
-          icon="M9 19v-6a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2zm0 0V9a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v10m-6 0a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2m0 0V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-2a2 2 0 0 1-2-2z"
-        />
+        <StatCard label="Membership Users" value={totalMembers} sub={`${activeMembers} active memberships`} icon="M16 14a4 4 0 1 0-8 0M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zm0 0c5 0 9 2.5 9 5.5V20H3v-3.5c0-3 4-5.5 9-5.5z" accent />
+        <StatCard label="Discount Tiers" value={totalDiscounts} sub="Silver, Gold, Platinum" icon="M12 2l3.09 6.26L22 9.27l-5 4.87" />
+        <StatCard label="Member Vouchers" value={totalVouchers} sub={`${totalVouchers} active vouchers`} icon="M20 12V22H4V12 M22 7H2v5h20V7z M12 22V7" />
+        <StatCard label="Avg Discount" value={`${avgDiscount}%`} sub="Across all tiers" icon="M12 8V4M12 20v-4M4 12h4M16 12h4" />
       </div>
 
-      {/* ── Tier cards ── */}
-      <div className={styles.tierGrid}>
-        {levels.map((level, idx) => {
-          const pct = Math.round((level.members / totalMembers) * 100)
-          return (
-            <div key={level.id} className={styles.tierCard}>
-              {/* Header */}
-              <div className={styles.tierHeader} style={{ background: level.color }}>
-                <div className={styles.tierRank}>#{idx + 1}</div>
-                <div className={styles.tierNameBlock}>
-                  <h3 className={styles.tierName}>{level.name}</h3>
-                  <span className={styles.tierDiscount}>
-                    {level.discount === 0 ? 'No discount' : `${level.discount}% off bookings`}
-                  </span>
-                </div>
-                <div className={styles.tierMemberCount}>
-                  <span className={styles.tierMemberNum}>{level.members.toLocaleString()}</span>
-                  <span className={styles.tierMemberLabel}>members</span>
-                </div>
-              </div>
-
-              {/* Body */}
-              <div className={styles.tierBody}>
-                {/* Min spend */}
-                <div className={styles.tierMeta}>
-                  <div className={styles.tierMetaItem}>
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                      <line x1="12" y1="1" x2="12" y2="23"/>
-                      <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
-                    </svg>
-                    <span>Min. spend: <strong>£{level.minSpend.toLocaleString()}</strong></span>
-                  </div>
-                  <div className={styles.tierMetaItem}>
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-                      <circle cx="12" cy="7" r="4"/>
-                    </svg>
-                    <span>{pct}% of members</span>
-                  </div>
-                </div>
-
-                {/* Member share bar */}
-                <div className={styles.shareBar}>
-                  <div className={styles.shareBarFill} style={{ width: `${pct}%`, background: level.color }} />
-                </div>
-
-                {/* Benefits */}
-                <div className={styles.benefitList}>
-                  <p className={styles.benefitTitle}>Benefits</p>
-                  {level.benefits.map((b, i) => (
-                    <div key={i} className={styles.benefitItem}>
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={level.color} strokeWidth="2.5" strokeLinecap="round">
-                        <polyline points="20 6 9 17 4 12"/>
-                      </svg>
-                      <span>{b}</span>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Actions */}
-                <div className={styles.tierActions}>
-                  <Btn variant="outline" small onClick={() => openEdit(level)}>
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-                      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-                    </svg>
-                    Edit Tier
-                  </Btn>
-                  {level.members === 0 && (
-                    <Btn danger small onClick={() => setConfirm(level.id)}>
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                        <polyline points="3 6 5 6 21 6"/>
-                        <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
-                      </svg>
-                      Delete
-                    </Btn>
-                  )}
-                </div>
-              </div>
-            </div>
-          )
-        })}
-
-        {/* Add new tier card */}
-        <button className={styles.addTierCard} onClick={openAdd}>
-          <div className={styles.addTierIcon}>
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-              <line x1="12" y1="5" x2="12" y2="19"/>
-              <line x1="5" y1="12" x2="19" y2="12"/>
-            </svg>
+      <Card className={styles.memberSection}>
+        <div className={styles.memberSectionHeader}>
+          <div>
+            <CardTitle>Membership Users</CardTitle>
+            <p>Menampilkan kolom membership tier saja dari tabel users.</p>
           </div>
-          <p>Add New Tier</p>
-        </button>
-      </div>
-
-      {/* ── Comparison table ── */}
-      <Card className={styles.compareCard}>
-        <CardTitle>Tier Comparison</CardTitle>
-        <div className={styles.compareTableWrap}>
-          <table className={styles.compareTable}>
-            <thead>
-              <tr>
-                <th>Tier</th>
-                <th>Discount</th>
-                <th>Min Spend</th>
-                <th>Members</th>
-                <th>Share</th>
-                <th>Benefits Count</th>
-              </tr>
-            </thead>
-            <tbody>
-              {levels.map(l => (
-                <tr key={l.id}>
-                  <td>
-                    <div className={styles.compareName}>
-                      <span className={styles.compareDot} style={{ background: l.color }} />
-                      <strong>{l.name}</strong>
-                    </div>
-                  </td>
-                  <td>
-                    <span className={styles.compareDiscount} style={{ color: l.color }}>
-                      {l.discount === 0 ? '—' : `${l.discount}%`}
-                    </span>
-                  </td>
-                  <td className={styles.tdMuted}>
-                    {l.minSpend === 0 ? 'Free' : `£${l.minSpend.toLocaleString()}`}
-                  </td>
-                  <td className={styles.tdBold}>{l.members.toLocaleString()}</td>
-                  <td>
-                    <div className={styles.compareBarRow}>
-                      <div className={styles.compareBarTrack}>
-                        <div
-                          className={styles.compareBarFill}
-                          style={{ width: `${Math.round((l.members / totalMembers) * 100)}%`, background: l.color }}
-                        />
-                      </div>
-                      <span>{Math.round((l.members / totalMembers) * 100)}%</span>
-                    </div>
-                  </td>
-                  <td className={styles.tdCenter}>{l.benefits.length} benefits</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <div className={styles.memberSectionMeta}>
+            <span>{filteredMembers.length} shown</span>
+            <span>{activeMembers} active</span>
+          </div>
         </div>
+
+        <div className={styles.memberToolbar}>
+          <Search value={memberSearch} onChange={e => setMemberSearch(e.target.value)} placeholder="Search tier..." />
+        </div>
+
+        {memberLoading ? (
+          <div className={styles.memberState}>
+            <p>Loading membership users...</p>
+          </div>
+        ) : memberError ? (
+          <Empty title="Unable to load members" desc={memberError} />
+        ) : filteredMembers.length > 0 ? (
+          <div className={styles.memberTableWrap}>
+            <div className={styles.memberTableHeader}>
+              <div>Name</div>
+              <div>Tier</div>
+              <div>Joined</div>
+            </div>
+
+            {filteredMembers.map(user => (
+              <div key={user.id} className={styles.memberTableRow}>
+                <div className={styles.memberIdentity}>
+                  <strong>{user.name || '-'}</strong>
+                  <div className={styles.memberEmail}>{user.email}</div>
+                </div>
+                <div>
+                  <Badge status={user.membership_tier || 'none'} />
+                </div>
+                <div>
+                  {formatDate(user.membership_start_date || user.joined_date || user.created_at)}
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <Empty title="No members found" desc="Tidak ada user yang cocok dengan filter saat ini." />
+        )}
       </Card>
 
-      {/* ── Add / Edit Modal ── */}
-      <Modal
-        open={!!modal}
-        onClose={() => setModal(null)}
-        title={modal === 'add' ? 'Create New Membership Tier' : `Edit: ${modal?.name}`}
-        width={560}
-      >
-        <div className={styles.twoField}>
-          <Field label="Tier Name">
-            <Input placeholder="e.g. Platinum" value={form.name} onChange={set('name')} />
-            {errors.name && <span className={styles.err}>{errors.name}</span>}
-          </Field>
-          <Field label="Tier Colour">
-            <Select value={form.color} onChange={set('color')}>
-              {TIER_COLORS.map(c => (
-                <option key={c.value} value={c.value}>{c.label}</option>
-              ))}
-            </Select>
-            <div className={styles.colorPreview} style={{ background: form.color }} />
-          </Field>
-        </div>
+      <div className={styles.tabBar}>
+        <button className={`${styles.tab} ${tab === 'discounts' ? styles.tabActive : ''}`} onClick={() => setTab('discounts')}>Tier Discounts</button>
+        <button className={`${styles.tab} ${tab === 'vouchers' ? styles.tabActive : ''}`} onClick={() => setTab('vouchers')}>Member Vouchers</button>
+      </div>
 
-        <div className={styles.twoField}>
-          <Field label="Booking Discount (%)" hint="0 = no discount. Max 50%.">
-            <Input type="number" min="0" max="50" placeholder="10" value={form.discount} onChange={set('discount')} />
-            {errors.discount && <span className={styles.err}>{errors.discount}</span>}
-          </Field>
-          <Field label="Minimum Lifetime Spend (£)" hint="0 = no minimum (entry level).">
-            <Input type="number" min="0" placeholder="8000" value={form.minSpend} onChange={set('minSpend')} />
-            {errors.minSpend && <span className={styles.err}>{errors.minSpend}</span>}
-          </Field>
-        </div>
-
-        <Field label="Tier Benefits">
-          <div className={styles.benefitEditor}>
-            {form.benefits.map((b, i) => (
-              <div key={i} className={styles.benefitRow}>
-                <Input
-                  placeholder={`Benefit ${i + 1}`}
-                  value={b}
-                  onChange={e => setBenefit(i, e.target.value)}
-                />
-                {form.benefits.length > 1 && (
-                  <button className={styles.removeBenefit} onClick={() => removeBenefit(i)}>
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                      <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-                    </svg>
-                  </button>
-                )}
-              </div>
-            ))}
-            <button className={styles.addBenefit} onClick={addBenefit}>
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
-              </svg>
-              Add benefit
-            </button>
+      {tab === 'discounts' && (
+        <div className={styles.content}>
+          <div className={styles.sectionHeader}>
+            <h2>Tier Discounts</h2>
           </div>
-          {errors.benefits && <span className={styles.err}>{errors.benefits}</span>}
+
+          {benefitsLoading ? (
+            <p>Loading benefits...</p>
+          ) : (
+            <div className={styles.tierCardsGrid}>
+              {tierSummary.map(tier => (
+                <Card key={tier.id} className={styles.tierCard}>
+                  <div className={styles.tierCardHeader} style={{ borderColor: tier.color }}>
+                    <span className={styles.tierIcon}>{tier.icon}</span>
+                    <h3>{tier.name}</h3>
+                  </div>
+                  <div className={styles.tierCardContent}>
+                    <div className={styles.tierStat}><span>Discount</span><strong>{tier.discount}%</strong></div>
+                    <div className={styles.tierStat}><span>Record ID</span><strong>{formatText(tier.benefit?.id)}</strong></div>
+                    <div className={styles.tierStat}><span>Title</span><strong>{formatText(tier.benefit?.title)}</strong></div>
+                    <div className={styles.tierStat}><span>Description</span><strong>{formatText(tier.benefit?.description)}</strong></div>
+                    <div className={styles.tierStat}><span>Tier</span><strong>{formatText(tier.benefit?.membershipTier)}</strong></div>
+                    <div className={styles.tierStat}><span>Scope</span><strong>{formatText(tier.benefit?.scope)}</strong></div>
+                    <div className={styles.tierStat}><span>Expiry</span><strong>{formatRawDate(tier.benefit?.expiryDate || tier.benefit?.expiry_date)}</strong></div>
+                    <div className={styles.tierCardActions}>
+                      {tier.benefit ? (
+                        <>
+                          <Btn small variant="secondary" onClick={() => openEditDiscount(tier.benefit)}>Edit</Btn>
+                          <Btn small danger onClick={() => setConfirm(tier.benefit.id)}>Delete</Btn>
+                        </>
+                      ) : (
+                        <Btn small onClick={() => openAddDiscount(tier.id)} style={{ width: '100%' }}>Add Discount</Btn>
+                      )}
+                    </div>
+                  </div>
+                </Card>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {tab === 'vouchers' && (
+        <div className={styles.content}>
+          <div className={styles.sectionHeader}>
+            <div className={styles.filterRow}>
+              <Search value={search} onChange={e => setSearch(e.target.value)} placeholder="Search voucher title..." />
+              <Select value={tierFilter} onChange={e => setTierFilter(e.target.value)}>
+                <option value="all">All Tiers</option>
+                <option value="silver">Silver</option>
+                <option value="gold">Gold</option>
+                <option value="platinum">Platinum</option>
+              </Select>
+              <Btn onClick={openAddVoucher}>+ Add Voucher</Btn>
+            </div>
+          </div>
+
+          {filteredVouchers.length > 0 ? (
+            <div className={styles.voucherTable}>
+              <div className={styles.tableHeader}>
+                <div>ID</div>
+                <div>Title</div>
+                <div>Description</div>
+                <div>Tier</div>
+                <div>Voucher Code</div>
+                <div>Scope</div>
+                <div>Expiry</div>
+                <div>Status</div>
+                <div>Actions</div>
+              </div>
+              {filteredVouchers.map(voucher => (
+                <div key={voucher.id} className={styles.tableRow}>
+                  <div>#{voucher.id}</div>
+                  <div><strong>{formatText(voucher.title)}</strong></div>
+                  <div>{formatText(voucher.description)}</div>
+                  <div><Badge status={voucher.membershipTier} /></div>
+                  <div><code>{formatText(voucher.code || '-')}</code></div>
+                  <div>{formatText(voucher.scope)}</div>
+                  <div>{voucher.expiresAt ? formatDate(voucher.expiresAt) : (voucher.expiryDate ? formatDate(voucher.expiryDate) : (voucher.expiry_date ? formatDate(voucher.expiry_date) : '-'))}</div>
+                  <div><Badge status={voucher.status} /></div>
+                  <div className={styles.rowActions}>
+                    <Btn small variant="secondary" onClick={() => openEditVoucher(voucher)}>Edit</Btn>
+                    <Btn small danger onClick={() => setConfirm(voucher.id)}>Delete</Btn>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <Empty title="No vouchers found" desc="Create membership vouchers to get started" />
+          )}
+        </div>
+      )}
+
+      <Modal
+        open={!!discountModal}
+        title={discountModal === 'add' ? 'Add Discount Benefit' : 'Edit Discount Benefit'}
+        onClose={() => setDiscountModal(null)}
+      >
+        {errors.submit && <div style={{ fontSize: '12px', color: '#c0392b', marginBottom: '12px', padding: '8px', background: '#fdd7d7', borderRadius: '4px' }}>{errors.submit}</div>}
+
+        <Field label="Tier">
+          <Input value={discountForm.tier.charAt(0).toUpperCase() + discountForm.tier.slice(1)} disabled style={{ background: '#f5f5f5', cursor: 'not-allowed' }} />
+        </Field>
+        {errors.tier && <div style={{ fontSize: '12px', color: '#c0392b', marginTop: '-8px', marginBottom: '8px' }}>{errors.tier}</div>}
+
+        <Field label="Title">
+          <Input value={discountForm.title} onChange={setDiscountField('title')} placeholder="e.g. Silver Member Discount" />
+        </Field>
+        <Field label="Description">
+          <Input value={discountForm.description} onChange={setDiscountField('description')} placeholder="e.g. 5% discount for Silver tier" />
+        </Field>
+        {errors.title && <div style={{ fontSize: '12px', color: '#c0392b', marginTop: '-8px', marginBottom: '8px' }}>{errors.title}</div>}
+
+        <Field label="Discount (%)">
+          <Input type="number" min="0" max="100" value={discountForm.discount} onChange={setDiscountField('discount')} placeholder="e.g. 5" />
+        </Field>
+        {errors.discount && <div style={{ fontSize: '12px', color: '#c0392b', marginTop: '-8px', marginBottom: '8px' }}>{errors.discount}</div>}
+
+        <Field label="Expiry Date (Optional)">
+          <Input type="date" value={discountForm.expiry} onChange={setDiscountField('expiry')} />
         </Field>
 
-        {/* Live preview */}
-        <div className={styles.previewCard} style={{ borderColor: form.color }}>
-          <div className={styles.previewHeader} style={{ background: form.color }}>
-            <span className={styles.previewName}>{form.name || 'Tier Name'}</span>
-            <span className={styles.previewDiscount}>
-              {form.discount ? `${form.discount}% off` : 'No discount'}
-            </span>
-          </div>
-          <div className={styles.previewBenefits}>
-            {form.benefits.filter(b => b.trim()).slice(0, 3).map((b, i) => (
-              <div key={i} className={styles.previewBenefitItem}>
-                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke={form.color} strokeWidth="3" strokeLinecap="round">
-                  <polyline points="20 6 9 17 4 12"/>
-                </svg>
-                <span>{b}</span>
-              </div>
-            ))}
-            {form.benefits.filter(b => b.trim()).length === 0 && (
-              <span className={styles.previewEmpty}>Add benefits above…</span>
-            )}
-          </div>
-        </div>
+        <Field label="Status">
+          <Select value={discountForm.status} onChange={setDiscountField('status')}>
+            <option value="active">Active</option>
+            <option value="inactive">Inactive</option>
+          </Select>
+        </Field>
 
-        <div className={styles.modalActions}>
-          <Btn variant="outline" onClick={() => setModal(null)}>Cancel</Btn>
-          <Btn onClick={save}>{modal === 'add' ? 'Create Tier' : 'Save Changes'}</Btn>
+        <div style={{ display: 'flex', gap: '10px', marginTop: '20px', justifyContent: 'flex-end' }}>
+          <Btn variant="outline" onClick={() => setDiscountModal(null)} disabled={saving}>Cancel</Btn>
+          <Btn onClick={saveDiscount} disabled={saving}>{saving ? 'Saving...' : 'Save'}</Btn>
         </div>
       </Modal>
 
-      {/* ── Delete confirm ── */}
+      <Modal
+        open={!!voucherModal}
+        title={voucherModal === 'add' ? 'Add Voucher Benefit' : 'Edit Voucher Benefit'}
+        onClose={() => setVoucherModal(null)}
+      >
+        {errors.submit && <div style={{ fontSize: '12px', color: '#c0392b', marginBottom: '12px', padding: '8px', background: '#fdd7d7', borderRadius: '4px' }}>{errors.submit}</div>}
+
+        <Field label="Tier">
+          <Select value={voucherForm.tier} onChange={setVoucherField('tier')} disabled={voucherModal !== 'add'}>
+            <option value="">Select tier</option>
+            <option value="silver">Silver</option>
+            <option value="gold">Gold</option>
+            <option value="platinum">Platinum</option>
+          </Select>
+        </Field>
+        {errors.tier && <div style={{ fontSize: '12px', color: '#c0392b', marginTop: '-8px', marginBottom: '8px' }}>{errors.tier}</div>}
+
+        {voucherModal === 'add' ? (
+          <>
+            <Field label="Voucher Code" hint="Letters, numbers, hyphens only. Will be uppercased.">
+              <Input value={voucherForm.code} onChange={setVoucherField('code')} placeholder="e.g. SUMMER25" style={{ textTransform: 'uppercase', fontFamily: 'monospace' }} />
+            </Field>
+            {errors.code && <div style={{ fontSize: '12px', color: '#c0392b', marginTop: '-8px', marginBottom: '8px' }}>{errors.code}</div>}
+
+            <Field label="Description">
+              <Input value={voucherForm.description} onChange={setVoucherField('description')} placeholder="e.g. Welcome voucher for Silver members" />
+            </Field>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+              <Field label="Discount Type">
+                <Select value={voucherForm.type} onChange={setVoucherField('type')}>
+                  <option value="percent">Percentage (%)</option>
+                  <option value="fixed">Fixed Amount (Rp)</option>
+                </Select>
+              </Field>
+              <Field label="Discount Value">
+                <Input type="number" min="1" value={voucherForm.value} onChange={setVoucherField('value')} placeholder={voucherForm.type === 'fixed' ? 'e.g. 50000' : 'e.g. 10'} />
+              </Field>
+            </div>
+            {errors.type && <div style={{ fontSize: '12px', color: '#c0392b', marginTop: '-8px', marginBottom: '8px' }}>{errors.type}</div>}
+            {errors.value && <div style={{ fontSize: '12px', color: '#c0392b', marginTop: '-8px', marginBottom: '8px' }}>{errors.value}</div>}
+
+            <Field label="Voucher Scope">
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setVoucherForm(f => ({ ...f, scope: 'global' }))
+                    setErrors(p => ({ ...p, scope: '' }))
+                  }}
+                  style={{
+                    border: voucherForm.scope === 'global' ? '2px solid #0d3d4a' : '1px solid #ddd',
+                    borderRadius: '12px',
+                    padding: '16px',
+                    background: voucherForm.scope === 'global' ? '#f0f8f9' : '#fff',
+                    cursor: 'pointer',
+                    textAlign: 'left',
+                  }}
+                >
+                  <div style={{ fontSize: '20px', marginBottom: '6px' }}>🌐</div>
+                  <strong style={{ display: 'block', fontSize: '14px' }}>Global</strong>
+                  <div style={{ fontSize: '12px', color: '#999', marginTop: '4px' }}>Applies to all hotels on the platform</div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setVoucherForm(f => ({ ...f, scope: 'hotel' }))
+                    setErrors(p => ({ ...p, scope: '' }))
+                  }}
+                  style={{
+                    border: voucherForm.scope === 'hotel' ? '2px solid #0d3d4a' : '1px solid #ddd',
+                    borderRadius: '12px',
+                    padding: '16px',
+                    background: voucherForm.scope === 'hotel' ? '#f0f8f9' : '#fff',
+                    cursor: 'pointer',
+                    textAlign: 'left',
+                    position: 'relative',
+                  }}
+                >
+                  <div style={{ fontSize: '20px', marginBottom: '6px' }}>🏨</div>
+                  <strong style={{ display: 'block', fontSize: '14px' }}>Per Hotel</strong>
+                  <div style={{ fontSize: '12px', color: '#999', marginTop: '4px' }}>Applies to one specific hotel only</div>
+                  {voucherForm.scope === 'hotel' && <div style={{ fontSize: '16px', position: 'absolute', right: '16px', top: '50%', transform: 'translateY(-50%)' }}>✓</div>}
+                </button>
+              </div>
+            </Field>
+            {errors.scope && <div style={{ fontSize: '12px', color: '#c0392b', marginTop: '-8px', marginBottom: '8px' }}>{errors.scope}</div>}
+
+            {voucherForm.scope === 'hotel' && (
+              <>
+                <Field label="Select Hotel">
+                  <Select value={voucherForm.hotelId || ''} onChange={(e) => setVoucherField('hotelId')(e.target.value)}>
+                    <option value="">— Choose a hotel —</option>
+                    {/* Will populate from hotels loaded by component */}
+                  </Select>
+                </Field>
+              </>
+            )}
+
+            {voucherForm.scope === 'room_type' && (
+              <>
+                <Field label="Room Type (Optional)">
+                  <Select value={voucherForm.roomType || ''} onChange={(e) => setVoucherField('roomType')(e.target.value)}>
+                    <option value="">— Any room type —</option>
+                    <option value="single">Single</option>
+                    <option value="double">Double</option>
+                    <option value="suite">Suite</option>
+                    <option value="deluxe">Deluxe</option>
+                    <option value="presidential">Presidential</option>
+                  </Select>
+                </Field>
+              </>
+            )}
+
+            <Field label="Usage Quota">
+              <Input type="number" min="1" value={voucherForm.usageLimit} onChange={setVoucherField('usageLimit')} placeholder="e.g. 100" />
+            </Field>
+            {errors.usageLimit && <div style={{ fontSize: '12px', color: '#c0392b', marginTop: '-8px', marginBottom: '8px' }}>{errors.usageLimit}</div>}
+
+            <Field label="Expiry Date">
+              <Input type="date" value={voucherForm.expiry} onChange={setVoucherField('expiry')} />
+            </Field>
+
+            <Field label="Status">
+              <Select value={voucherForm.status} onChange={setVoucherField('status')}>
+                <option value="active">Active</option>
+                <option value="inactive">Inactive</option>
+              </Select>
+            </Field>
+          </>
+        ) : (
+          <>
+            <Field label="Voucher Code" hint="Letters, numbers, hyphens only. Will be uppercased.">
+              <Input value={voucherForm.code} onChange={setVoucherField('code')} placeholder="e.g. SUMMER25" style={{ textTransform: 'uppercase', fontFamily: 'monospace' }} />
+            </Field>
+            {errors.code && <div style={{ fontSize: '12px', color: '#c0392b', marginTop: '-8px', marginBottom: '8px' }}>{errors.code}</div>}
+
+            <Field label="Description">
+              <Input value={voucherForm.description} onChange={setVoucherField('description')} placeholder="e.g. Welcome voucher for Silver members" />
+            </Field>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+              <Field label="Discount Type">
+                <Select value={voucherForm.type} onChange={setVoucherField('type')}>
+                  <option value="percent">Percentage (%)</option>
+                  <option value="fixed">Fixed Amount (Rp)</option>
+                </Select>
+              </Field>
+              <Field label="Discount Value">
+                <Input type="number" min="1" value={voucherForm.value} onChange={setVoucherField('value')} placeholder={voucherForm.type === 'fixed' ? 'e.g. 50000' : 'e.g. 10'} />
+              </Field>
+            </div>
+            {errors.type && <div style={{ fontSize: '12px', color: '#c0392b', marginTop: '-8px', marginBottom: '8px' }}>{errors.type}</div>}
+            {errors.value && <div style={{ fontSize: '12px', color: '#c0392b', marginTop: '-8px', marginBottom: '8px' }}>{errors.value}</div>}
+
+            <Field label="Voucher Scope">
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setVoucherForm(f => ({ ...f, scope: 'global' }))
+                    setErrors(p => ({ ...p, scope: '' }))
+                  }}
+                  style={{
+                    border: voucherForm.scope === 'global' ? '2px solid #0d3d4a' : '1px solid #ddd',
+                    borderRadius: '12px',
+                    padding: '16px',
+                    background: voucherForm.scope === 'global' ? '#f0f8f9' : '#fff',
+                    cursor: 'pointer',
+                    textAlign: 'left',
+                  }}
+                >
+                  <div style={{ fontSize: '20px', marginBottom: '6px' }}>🌐</div>
+                  <strong style={{ display: 'block', fontSize: '14px' }}>Global</strong>
+                  <div style={{ fontSize: '12px', color: '#999', marginTop: '4px' }}>Applies to all hotels on the platform</div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setVoucherForm(f => ({ ...f, scope: 'hotel' }))
+                    setErrors(p => ({ ...p, scope: '' }))
+                  }}
+                  style={{
+                    border: voucherForm.scope === 'hotel' ? '2px solid #0d3d4a' : '1px solid #ddd',
+                    borderRadius: '12px',
+                    padding: '16px',
+                    background: voucherForm.scope === 'hotel' ? '#f0f8f9' : '#fff',
+                    cursor: 'pointer',
+                    textAlign: 'left',
+                    position: 'relative',
+                  }}
+                >
+                  <div style={{ fontSize: '20px', marginBottom: '6px' }}>🏨</div>
+                  <strong style={{ display: 'block', fontSize: '14px' }}>Per Hotel</strong>
+                  <div style={{ fontSize: '12px', color: '#999', marginTop: '4px' }}>Applies to one specific hotel only</div>
+                  {voucherForm.scope === 'hotel' && <div style={{ fontSize: '16px', position: 'absolute', right: '16px', top: '50%', transform: 'translateY(-50%)' }}>✓</div>}
+                </button>
+              </div>
+            </Field>
+            {errors.scope && <div style={{ fontSize: '12px', color: '#c0392b', marginTop: '-8px', marginBottom: '8px' }}>{errors.scope}</div>}
+
+            {voucherForm.scope === 'hotel' && (
+              <>
+                <Field label="Select Hotel">
+                  <Select value={voucherForm.hotelId || ''} onChange={(e) => setVoucherField('hotelId')(e.target.value)}>
+                    <option value="">— Choose a hotel —</option>
+                  </Select>
+                </Field>
+              </>
+            )}
+
+            {voucherForm.scope === 'room_type' && (
+              <>
+                <Field label="Room Type (Optional)">
+                  <Select value={voucherForm.roomType || ''} onChange={(e) => setVoucherField('roomType')(e.target.value)}>
+                    <option value="">— Any room type —</option>
+                    <option value="single">Single</option>
+                    <option value="double">Double</option>
+                    <option value="suite">Suite</option>
+                    <option value="deluxe">Deluxe</option>
+                    <option value="presidential">Presidential</option>
+                  </Select>
+                </Field>
+              </>
+            )}
+
+            <Field label="Usage Quota">
+              <Input type="number" min="1" value={voucherForm.usageLimit} onChange={setVoucherField('usageLimit')} placeholder="e.g. 100" />
+            </Field>
+            {errors.usageLimit && <div style={{ fontSize: '12px', color: '#c0392b', marginTop: '-8px', marginBottom: '8px' }}>{errors.usageLimit}</div>}
+
+            <Field label="Expiry Date">
+              <Input type="date" value={voucherForm.expiry} onChange={setVoucherField('expiry')} />
+            </Field>
+
+            <Field label="Status">
+              <Select value={voucherForm.status} onChange={setVoucherField('status')}>
+                <option value="active">Active</option>
+                <option value="inactive">Inactive</option>
+              </Select>
+            </Field>
+          </>
+        )}
+
+        <div style={{ display: 'flex', gap: '10px', marginTop: '20px', justifyContent: 'flex-end' }}>
+          <Btn variant="outline" onClick={() => setVoucherModal(null)} disabled={saving}>Cancel</Btn>
+          <Btn onClick={saveVoucher} disabled={saving}>{saving ? 'Saving...' : 'Save'}</Btn>
+        </div>
+      </Modal>
+
       <Confirm
         open={!!confirm}
+        title="Delete Membership Benefit"
+        message="This action cannot be undone."
+        onConfirm={() => {
+          const isDiscount = discounts.some(item => item.id === confirm)
+          if (isDiscount) {
+            removeDiscount()
+          } else {
+            removeVoucher()
+          }
+        }}
         onClose={() => setConfirm(null)}
-        onConfirm={remove}
-        title="Delete Membership Tier"
-        message="This tier will be permanently removed. It can only be deleted if it has 0 members."
-        confirmLabel="Delete Tier"
-        confirmDanger
+        disabled={saving}
       />
     </AdminLayout>
   )

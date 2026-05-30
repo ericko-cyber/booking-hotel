@@ -28,6 +28,10 @@ func InitDatabase() {
 		log.Fatalf("Failed to connect to database: %v", err)
 	}
 
+	if err := DB.Exec("ALTER TABLE payments MODIFY booking_id INT NULL").Error; err != nil {
+		log.Printf("warning: could not make payments.booking_id nullable: %v", err)
+	}
+
 	log.Println("✓ Database connected successfully")
 }
 

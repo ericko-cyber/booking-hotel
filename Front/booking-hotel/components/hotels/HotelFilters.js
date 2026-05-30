@@ -2,15 +2,11 @@ import styles from '../HotelFilters.module.css'
 
 const MOODS = ['Pesisir', 'Alam', 'Perkotaan']
 const REGIONS = ['Bali', 'Jakarta', 'Malang', 'Jogja', 'Lombok']
-const AMENITY_LIST = [
-  { key: 'pool', label: 'Kolam Renang' },
-  { key: 'spa', label: 'Spa & Kebugaran' },
-  { key: 'gym', label: 'Pusat Kebugaran' },
-  { key: 'dining', label: 'Restoran Premium' },
-  { key: 'concierge', label: 'Layanan Concierge' },
-]
 
-export default function HotelFilters({ filters, setFilters }) {
+export default function HotelFilters({ filters, setFilters, regions = REGIONS, amenities = [], priceBounds = { min: 0, max: 2500 }, defaultFilters }) {
+  const normalizedRegionQuery = (filters.regionQuery || '').toLowerCase().trim()
+  const matchedRegions = regions.filter(r => r.toLowerCase().includes(normalizedRegionQuery))
+
   const toggleAmenity = (key) => {
     setFilters(f => ({
       ...f,
@@ -21,11 +17,11 @@ export default function HotelFilters({ filters, setFilters }) {
   }
 
   const reset = () => {
-    setFilters({ mood: '', region: '', priceMax: 2500, amenities: [], search: '' })
+    setFilters(defaultFilters || { mood: '', region: '', regionQuery: '', priceMax: priceBounds.max, amenities: [], search: '' })
   }
 
   const hasActive =
-    filters.mood || filters.region || filters.priceMax < 2500 || filters.amenities.length > 0
+    filters.mood || filters.region || filters.regionQuery || filters.priceMax < priceBounds.max || filters.amenities.length > 0
 
   return (
     <div className={styles.filters}>
@@ -53,43 +49,57 @@ export default function HotelFilters({ filters, setFilters }) {
 
       <div className={styles.group}>
         <p className={styles.groupLabel}>Wilayah</p>
+        <input
+          type="text"
+          value={filters.regionQuery || ''}
+          onChange={(e) => setFilters(f => ({ ...f, regionQuery: e.target.value }))}
+          placeholder="Cari wilayah..."
+          className={styles.searchInput}
+        />
+        {(filters.regionQuery || '').trim() && (
+          <p className={styles.searchHint}>Hasil hotel difilter berdasarkan wilayah yang Anda ketik.</p>
+        )}
         <div className={styles.chipGroup}>
-          {REGIONS.map(r => (
+          {matchedRegions.map(r => (
             <button
               key={r}
               className={`${styles.chip} ${filters.region === r ? styles.chipActive : ''}`}
-              onClick={() => setFilters(f => ({ ...f, region: f.region === r ? '' : r }))}
+              onClick={() => setFilters(f => ({ ...f, region: f.region === r ? '' : r, regionQuery: r }))}
             >
               {r}
             </button>
           ))}
         </div>
+        {matchedRegions.length === 0 && (
+          <p className={styles.emptyHint}>Wilayah tidak ditemukan.</p>
+        )}
       </div>
 
       <div className={styles.group}>
         <div className={styles.groupLabelRow}>
           <p className={styles.groupLabel}>Harga Maksimal</p>
-          <strong className={styles.priceValue}>Rp{filters.priceMax.toLocaleString('id-ID')}</strong>
+          <strong className={styles.priceValue}>Rp{Number(filters.priceMax).toLocaleString('id-ID')}</strong>
         </div>
         <input
           type="range"
-          min={200}
-          max={2500}
+          min={priceBounds.min}
+          max={priceBounds.max}
           step={50}
           value={filters.priceMax}
           onChange={e => setFilters(f => ({ ...f, priceMax: Number(e.target.value) }))}
           className={styles.rangeInput}
+          style={{ '--val': filters.priceMax, '--min': priceBounds.min, '--max': priceBounds.max }}
         />
         <div className={styles.rangeLabels}>
-          <span>Rp200</span>
-          <span>Rp2.500</span>
+          <span>Rp{Number((priceBounds.min || 0)).toLocaleString('id-ID')}</span>
+          <span>Rp{Number((priceBounds.max || 0)).toLocaleString('id-ID')}</span>
         </div>
       </div>
 
       <div className={styles.group}>
         <p className={styles.groupLabel}>Fasilitas</p>
         <div className={styles.checkList}>
-          {AMENITY_LIST.map(({ key, label }) => (
+          {amenities.length > 0 ? amenities.map(({ key, label }) => (
             <label key={key} className={styles.checkItem}>
               <input
                 type="checkbox"
@@ -98,7 +108,9 @@ export default function HotelFilters({ filters, setFilters }) {
               />
               <span>{label}</span>
             </label>
-          ))}
+          )) : (
+            <p className={styles.emptyHint}>Belum ada fasilitas yang tersedia.</p>
+          )}
         </div>
       </div>
     </div>

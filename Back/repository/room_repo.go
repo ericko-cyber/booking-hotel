@@ -54,15 +54,32 @@ func (r *RoomRepository) ListRoomsByHotel(hotelID int, page, pageSize int) ([]mo
 
 	offset := (page - 1) * pageSize
 
-	if err := r.db.Where("hotel_id = ?", hotelID).Count(&total).Error; err != nil {
+	// Use Model() to specify the table
+	baseQuery := r.db.Model(&models.Room{}).Where("hotel_id = ?", hotelID)
+
+	if err := baseQuery.Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
 
-	if err := r.db.Where("hotel_id = ?", hotelID).Offset(offset).Limit(pageSize).Find(&rooms).Error; err != nil {
+	if err := r.db.Model(&models.Room{}).
+		Where("hotel_id = ?", hotelID).
+		Offset(offset).
+		Limit(pageSize).
+		Order("created_at DESC").
+		Find(&rooms).Error; err != nil {
 		return nil, 0, err
 	}
 
 	return rooms, total, nil
+}
+
+// GetRoomsByHotel retrieves all rooms for a hotel.
+func (r *RoomRepository) GetRoomsByHotel(hotelID int) ([]models.Room, error) {
+	var rooms []models.Room
+	if err := r.db.Where("hotel_id = ?", hotelID).Find(&rooms).Error; err != nil {
+		return nil, err
+	}
+	return rooms, nil
 }
 
 // GetAvailableRoomsByHotel retrieves available rooms in a hotel

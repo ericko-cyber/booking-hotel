@@ -4,6 +4,7 @@ import (
 	"Back/config"
 	"Back/models"
 	"errors"
+	"time"
 
 	"gorm.io/gorm"
 )
@@ -100,10 +101,26 @@ func (r *UserRepository) UpdateUserStatus(id int, status string) error {
 	return r.db.Model(&models.User{}).Where("id = ?", id).Update("status", status).Error
 }
 
+// UpdateMembership updates membership fields for a user
+func (r *UserRepository) UpdateMembership(id int, tier string, status string, startDate *time.Time, expiryDate *time.Time) error {
+	updates := map[string]interface{}{
+		"membership_tier":   tier,
+		"membership_status": status,
+	}
+	if startDate != nil {
+		updates["membership_start_date"] = *startDate
+	}
+	if expiryDate != nil {
+		updates["membership_expiry_date"] = *expiryDate
+	}
+
+	return r.db.Model(&models.User{}).Where("id = ?", id).Updates(updates).Error
+}
+
 // GetUserWithoutPassword retrieves user without password field
 func (r *UserRepository) GetUserWithoutPassword(id int) (*models.User, error) {
 	var user models.User
-	if err := r.db.Select("id", "name", "email", "phone", "role", "is_admin", "profile_image", "bio", "address", "city", "province", "postal_code", "country", "status", "last_login", "created_at", "updated_at").First(&user, id).Error; err != nil {
+	if err := r.db.Select("id", "name", "email", "phone", "role", "is_admin", "membership_tier", "membership_status", "membership_start_date", "membership_expiry_date", "profile_image", "bio", "address", "city", "province", "postal_code", "country", "status", "last_login", "created_at", "updated_at").First(&user, id).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, errors.New("user not found")
 		}
@@ -114,14 +131,14 @@ func (r *UserRepository) GetUserWithoutPassword(id int) (*models.User, error) {
 
 // UserExists checks if user exists by ID
 func (r *UserRepository) UserExists(id int) bool {
-	var exists bool
-	r.db.Model(&models.User{}).Select("count(*) > 0").Where("id = ?", id).Find(&exists)
-	return exists
+	var count int64
+	r.db.Model(&models.User{}).Where("id = ?", id).Count(&count)
+	return count > 0
 }
 
 // EmailExists checks if email already exists
 func (r *UserRepository) EmailExists(email string) bool {
-	var exists bool
-	r.db.Model(&models.User{}).Select("count(*) > 0").Where("email = ?", email).Find(&exists)
-	return exists
+	var count int64
+	r.db.Model(&models.User{}).Where("email = ?", email).Count(&count)
+	return count > 0
 }

@@ -1,13 +1,42 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import OwnerLayout from './OwnerLayout'
 import { PageHeader, Card, Btn, Field, Input } from './OwnerUI'
 import styles from '../Settings.module.css'
+import api from '../../lib/api'
+
+const normalizeProfileValue = (value) => {
+  if (value == null) return ''
+  if (typeof value === 'string') return value
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value)
+
+  if (typeof value === 'object') {
+    if (typeof value.String === 'string') {
+      return value.Valid === false ? '' : value.String
+    }
+
+    if (typeof value.value === 'string') {
+      return value.value
+    }
+  }
+
+  return ''
+}
+
+const normalizeProfileData = (data = {}) => ({
+  name: normalizeProfileValue(data.name),
+  email: normalizeProfileValue(data.email),
+  phone: normalizeProfileValue(data.phone),
+  address: normalizeProfileValue(data.address),
+  city: normalizeProfileValue(data.city),
+  province: normalizeProfileValue(data.province),
+  postal_code: normalizeProfileValue(data.postal_code),
+  bio: normalizeProfileValue(data.bio),
+  profile_image: normalizeProfileValue(data.profile_image),
+})
 
 export default function OwnerSettings() {
   const [profile, setProfile] = useState({
-    firstName: 'James', lastName: 'Richardson',
-    email: 'j.richardson@hotels.com', phone: '+44 7700 900123',
-    company: 'Richardson Hospitality Group', bio: 'Independent hotel owner with properties across Europe.',
+    name: '', email: '', phone: '', address: '', city: '', province: '', postal_code: '', bio: '', profile_image: '',
   })
   const [passwords, setPasswords] = useState({ current: '', newPass: '', confirm: '' })
   const [profileSaved, setProfileSaved] = useState(false)
@@ -17,9 +46,16 @@ export default function OwnerSettings() {
   const setP = k => e => setProfile(p => ({ ...p, [k]: e.target.value }))
   const setPw = k => e => setPasswords(p => ({ ...p, [k]: e.target.value }))
 
-  const saveProfile = () => {
-    setProfileSaved(true)
-    setTimeout(() => setProfileSaved(false), 2500)
+  const saveProfile = async () => {
+    try {
+      const payload = normalizeProfileData(profile)
+      await api.put('/auth/profile', payload)
+      setProfileSaved(true)
+      setTimeout(() => setProfileSaved(false), 2500)
+    } catch (err) {
+      console.error('Failed to save profile', err)
+      alert(err?.message || 'Failed to save profile')
+    }
   }
 
   const savePassword = () => {
@@ -27,10 +63,34 @@ export default function OwnerSettings() {
     if (!passwords.current) { setPassErr('Enter your current password.'); return }
     if (passwords.newPass.length < 8) { setPassErr('New password must be at least 8 characters.'); return }
     if (passwords.newPass !== passwords.confirm) { setPassErr('Passwords do not match.'); return }
-    setPassSaved(true)
-    setPasswords({ current: '', newPass: '', confirm: '' })
-    setTimeout(() => setPassSaved(false), 2500)
+    // call backend password change endpoint
+    ;(async () => {
+      try {
+        await api.put('/auth/password', { current_password: passwords.current, new_password: passwords.newPass })
+        setPassSaved(true)
+        setPasswords({ current: '', newPass: '', confirm: '' })
+        setTimeout(() => setPassSaved(false), 2500)
+      } catch (err) {
+        console.error('Password change failed', err)
+        setPassErr(err?.message || 'Failed to update password')
+      }
+    })()
   }
+
+  useEffect(() => {
+    let mounted = true
+    ;(async () => {
+      try {
+        const res = await api.get('/auth/profile')
+        if (!mounted) return
+        const data = res.data || res
+        setProfile(normalizeProfileData(data))
+      } catch (err) {
+        console.error('Failed to load profile', err)
+      }
+    })()
+    return () => { mounted = false }
+  }, [])
 
   return (
     <OwnerLayout active="settings">
@@ -49,24 +109,31 @@ export default function OwnerSettings() {
             </div>
 
             <div className={styles.twoField}>
-              <Field label="First Name">
-                <Input value={profile.firstName} onChange={setP('firstName')} />
-              </Field>
-              <Field label="Last Name">
-                <Input value={profile.lastName} onChange={setP('lastName')} />
-              </Field>
-            </div>
+            <Field label="Full Name">
+              <Input value={profile.name} onChange={setP('name')} />
+            </Field>
             <Field label="Email Address">
-              <Input type="email" value={profile.email} onChange={setP('email')} />
+              <Input type="email" value={profile.email} disabled />
             </Field>
             <div className={styles.twoField}>
               <Field label="Phone Number">
                 <Input value={profile.phone} onChange={setP('phone')} />
               </Field>
-              <Field label="Company / Group">
-                <Input value={profile.company} onChange={setP('company')} />
+              <Field label="City">
+                <Input value={profile.city} onChange={setP('city')} />
               </Field>
             </div>
+            <div className={styles.twoField}>
+              <Field label="Province">
+                <Input value={profile.province} onChange={setP('province')} />
+              </Field>
+              <Field label="Postal Code">
+                <Input value={profile.postal_code} onChange={setP('postal_code')} />
+              </Field>
+            </div>
+            <Field label="Address">
+              <Input value={profile.address} onChange={setP('address')} />
+            </Field>
             <Field label="Short Bio" hint="Visible to platform administrators only.">
               <textarea
                 className={styles.textarea}
@@ -75,6 +142,7 @@ export default function OwnerSettings() {
                 onChange={setP('bio')}
               />
             </Field>
+            </div>
 
             <div className={styles.saveRow}>
               {profileSaved && <span className={styles.savedMsg}>✓ Changes saved</span>}

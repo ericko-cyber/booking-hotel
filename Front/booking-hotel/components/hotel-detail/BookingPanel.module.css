@@ -218,6 +218,18 @@
   color: #777;
 }
 .discountRow { color: #2a7a2a; font-weight: 500; }
+.savingsBanner {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  margin-top: -4px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: #eff6ff;
+  color: #1d4ed8;
+  font-size: 12.5px;
+  line-height: 1.45;
+}
 .totalRow {
   margin-top: 4px;
   font-size: 14px;

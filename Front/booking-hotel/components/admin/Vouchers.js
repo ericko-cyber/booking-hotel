@@ -1,28 +1,149 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import AdminLayout from '../../components/admin/AdminLayout'
 import {
   PageHeader, Badge, Btn, Card, CardTitle,
   Modal, Field, Input, Select, Confirm, Search, Empty, StatCard,
 } from '../../components/admin/AdminUI'
-import { PLATFORM_VOUCHERS as INIT, ALL_HOTELS_ADMIN } from './AdminData'
+import api from '../../lib/api'
+import { voucherService } from '../../services/voucherService'
 import styles from './Vouchers.module.css'
 
 const BLANK = {
   code: '', type: 'percent', value: '', scope: 'global',
-  hotel: '', expiry: '', quota: '', status: 'active',
+  hotel_id: '', hotel_name: '', room_type: '', expiry_date: '', usage_limit: '', status: 'active',
 }
 
-const approvedHotels = ALL_HOTELS_ADMIN.filter(h => h.status === 'approved')
+const approvedHotelsPlaceholder = []
+
+const toDateInputValue = (value) => {
+  if (!value) return ''
+  if (typeof value === 'string') return value.slice(0, 10)
+  if (value instanceof Date) return value.toISOString().slice(0, 10)
+  if (typeof value === 'object' && value !== null && typeof value.toISOString === 'function') {
+    return value.toISOString().slice(0, 10)
+  }
+  return String(value).slice(0, 10)
+}
 
 export default function AdminVouchers() {
-  const [vouchers, setVouchers] = useState(INIT)
+  const [vouchers, setVouchers] = useState([])
+  const [hotels, setHotels] = useState([])
+  const [roomTypes, setRoomTypes] = useState([])
+  const [roomTypesLoading, setRoomTypesLoading] = useState(false)
   const [search, setSearch] = useState('')
   const [scopeFilter, setScopeFilter] = useState('all')
   const [statusFilter, setStatusFilter] = useState('all')
-  const [modal, setModal] = useState(null)   // null | 'add' | voucher-obj
+  const [modal, setModal] = useState(null)
   const [confirm, setConfirm] = useState(null)
   const [form, setForm] = useState(BLANK)
   const [errors, setErrors] = useState({})
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+  const [errorMsg, setErrorMsg] = useState(null)
+
+  const allVouchers = vouchers
+
+  const approvedHotels = hotels.length ? hotels.filter(h => h.status === 'approved') : approvedHotelsPlaceholder
+
+  /* ── Fetch vouchers on mount ── */
+  useEffect(() => {
+    ;(async () => {
+      await fetchHotels()
+      await fetchVouchers()
+    })()
+  }, [])
+
+  const fetchHotels = async () => {
+    try {
+      const res = await api.get('/hotels')
+      // API may return { data: { hotels: [...] } } or { hotels: [...] }
+      const apiHotels = res?.data?.hotels || res?.hotels || res?.Data?.Hotels || res?.Hotels || res?.data || []
+      // normalize to expected shape (id, name, status, owner)
+      const norm = (Array.isArray(apiHotels) ? apiHotels : []).map(h => ({
+        id: h.id || h.ID || h.hotelId,
+        name: h.name || h.title || h.hotel_name,
+        status: h.status || 'pending',
+        owner: h.owner_name || h.owner || (h.ownerId ? `Owner ${h.ownerId}` : ''),
+      }))
+      setHotels(norm)
+    } catch (err) {
+      console.error('Failed to fetch hotels for admin voucher form:', err)
+    }
+  }
+
+  const loadRoomTypesForHotel = async (hotelId) => {
+    if (!hotelId) {
+      setRoomTypes([])
+      return
+    }
+
+    try {
+      setRoomTypesLoading(true)
+      const res = await api.get(`/hotels/${hotelId}/rooms?page_size=1000`)
+      const apiRooms = res?.data?.rooms || res?.rooms || res?.Data?.Rooms || res?.Rooms || res?.data || []
+      const normalizedRooms = (Array.isArray(apiRooms) ? apiRooms : [])
+        .map(room => ({
+          value: room.room_type || room.roomType || '',
+          label: room.name || room.room_name || room.roomName || room.room_type || room.roomType || '',
+        }))
+        .filter(room => room.value)
+
+      const uniqueRooms = []
+      const seen = new Set()
+      normalizedRooms.forEach(room => {
+        if (seen.has(room.value)) return
+        seen.add(room.value)
+        uniqueRooms.push(room)
+      })
+
+      setRoomTypes(uniqueRooms)
+    } catch (err) {
+      console.error('Failed to fetch room types for hotel:', err)
+      setRoomTypes([])
+    } finally {
+      setRoomTypesLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    if (form.scope === 'hotel' && form.hotel_id) {
+      loadRoomTypesForHotel(form.hotel_id)
+      return
+    }
+
+    setRoomTypes([])
+  }, [form.scope, form.hotel_id])
+
+  const fetchVouchers = async () => {
+    try {
+      setLoading(true)
+      setErrorMsg(null)
+      const data = await voucherService.getAdminVouchers()
+      const normalized = data.map(v => ({
+        id: v.id,
+        code: v.code,
+        type: v.benefitType,
+        value: v.benefit,
+        scope: v.scope === 'room_type' ? 'hotel' : v.scope,
+        membershipTier: v.membershipTier || 'none',
+        hotel_id: v.hotelId,
+        room_type: v.roomType,
+        hotel_name: (hotels.find(h => Number(h.id) === Number(v.hotelId))?.name) || (v.category === 'hotel' ? `Hotel ${v.hotelId}` : null),
+        expiry_date: toDateInputValue(v.expiresAt),
+        usage_limit: v.quota,
+        used: v.used,
+        status: v.status,
+        description: v.description,
+      }))
+      setVouchers(normalized)
+    } catch (error) {
+      console.error('Failed to fetch vouchers:', error)
+      setErrorMsg('Failed to load vouchers: ' + (error.message || 'Unknown error'))
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const set = k => e => {
     setForm(f => ({ ...f, [k]: e.target.value }))
@@ -30,8 +151,27 @@ export default function AdminVouchers() {
   }
 
   /* ── Open modals ── */
-  const openAdd = () => { setForm(BLANK); setErrors({}); setModal('add') }
-  const openEdit = v => { setForm({ ...v, value: String(v.value), quota: String(v.quota) }); setErrors({}); setModal(v) }
+  const openAdd = () => { setForm(BLANK); setErrors({}); setErrorMsg(null); setModal('add') }
+  const openEdit = v => {
+    const hotelName = approvedHotels.find(h => h.id === v.hotel_id)?.name || v.hotel_name
+    setForm({
+      id: v.id,
+      code: v.code,
+      type: v.type,
+      value: String(v.value),
+      scope: v.scope === 'room_type' ? 'hotel' : v.scope,
+      hotel_id: v.hotel_id || '',
+      hotel_name: hotelName,
+      room_type: v.room_type || '',
+      expiry_date: toDateInputValue(v.expiry_date),
+      usage_limit: String(v.usage_limit),
+      status: v.status,
+      description: v.description || '',
+    })
+    setErrors({})
+    setErrorMsg(null)
+    setModal(v)
+  }
 
   /* ── Validate ── */
   const validate = () => {
@@ -39,51 +179,100 @@ export default function AdminVouchers() {
     if (!form.code.trim())  e.code  = 'Code is required'
     if (!form.value || Number(form.value) <= 0) e.value = 'Enter a valid value'
     if (form.type === 'percent' && Number(form.value) > 100) e.value = 'Percentage cannot exceed 100'
-    if (!form.expiry) e.expiry = 'Expiry date is required'
-    if (!form.quota || Number(form.quota) < 1) e.quota = 'Enter a valid quota'
-    if (form.scope === 'hotel' && !form.hotel) e.hotel = 'Select a hotel for hotel-scoped voucher'
+    if (!form.expiry_date) e.expiry_date = 'Expiry date is required'
+    if (!form.usage_limit || Number(form.usage_limit) < 1) e.usage_limit = 'Enter a valid quota'
+    if (form.scope === 'hotel' && !form.hotel_id) e.hotel_id = 'Select a hotel for hotel-scoped voucher'
     setErrors(e)
     return !Object.keys(e).length
   }
 
   /* ── Save ── */
-  const save = () => {
+  const save = async () => {
     if (!validate()) return
-    const entry = {
-      ...form,
-      value: Number(form.value),
-      quota: Number(form.quota),
-      used: modal === 'add' ? 0 : modal.used,
-      id: modal === 'add' ? Date.now() : modal.id,
-      hotel: form.scope === 'global' ? null : form.hotel,
+
+    try {
+      setSaving(true)
+      setErrorMsg(null)
+
+      const payload = {
+        code: form.code.toUpperCase(),
+        type: form.type,
+        value: Number(form.value),
+        scope: form.scope,
+        membership_tier: 'none',
+        expiry_date: form.expiry_date,
+        usage_limit: Number(form.usage_limit),
+        description: form.description,
+      }
+
+      if (form.scope === 'hotel' && form.hotel_id) {
+        payload.hotel_id = Number(form.hotel_id)
+      }
+
+      if (form.scope === 'hotel' && form.room_type.trim()) {
+        payload.room_type = form.room_type.trim()
+      }
+
+      if (modal === 'add') {
+        // Create new voucher
+        await voucherService.createVoucher(payload)
+        await fetchVouchers()
+      } else {
+        // Update existing voucher
+        await voucherService.updateVoucher(form.id, {
+          code: form.code.toUpperCase(),
+          type: form.type,
+          value: Number(form.value),
+          scope: form.scope,
+          membership_tier: 'none',
+          hotel_id: form.scope === 'hotel' && form.hotel_id ? Number(form.hotel_id) : undefined,
+          room_type: form.scope === 'hotel' ? form.room_type.trim() : undefined,
+          expiry_date: form.expiry_date,
+          usage_limit: Number(form.usage_limit),
+          min_booking_amount: 0,
+          status: form.status,
+          description: form.description,
+        })
+        await fetchVouchers()
+      }
+
+      setModal(null)
+    } catch (error) {
+      console.error('Error saving voucher:', error)
+      setErrorMsg('Failed to save voucher: ' + (error.message || 'Unknown error'))
+    } finally {
+      setSaving(false)
     }
-    if (modal === 'add') {
-      setVouchers(v => [entry, ...v])
-    } else {
-      setVouchers(v => v.map(x => x.id === modal.id ? entry : x))
-    }
-    setModal(null)
   }
 
   /* ── Delete ── */
-  const remove = () => {
-    setVouchers(v => v.filter(x => x.id !== confirm))
-    setConfirm(null)
+  const remove = async () => {
+    try {
+      setDeleting(true)
+      setErrorMsg(null)
+      await voucherService.deleteVoucher(confirm)
+      await fetchVouchers()
+      setConfirm(null)
+    } catch (error) {
+      console.error('Error deleting voucher:', error)
+      setErrorMsg('Failed to delete voucher: ' + (error.message || 'Unknown error'))
+      setDeleting(false)
+    }
   }
 
   /* ── Filter ── */
-  const filtered = vouchers.filter(v => {
+  const filtered = allVouchers.filter(v => {
     const ms = scopeFilter  === 'all' || v.scope   === scopeFilter
     const mt = statusFilter === 'all' || v.status  === statusFilter
-    const mq = !search || v.code.toLowerCase().includes(search.toLowerCase()) || (v.hotel || '').toLowerCase().includes(search.toLowerCase())
+    const mq = !search || v.code.toLowerCase().includes(search.toLowerCase()) || (v.hotel_name || '').toLowerCase().includes(search.toLowerCase())
     return ms && mt && mq
   })
 
   /* ── Summary stats ── */
-  const totalActive  = vouchers.filter(v => v.status === 'active').length
-  const totalUsed    = vouchers.reduce((s, v) => s + v.used, 0)
-  const totalQuota   = vouchers.reduce((s, v) => s + v.quota, 0)
-  const globalCount  = vouchers.filter(v => v.scope === 'global').length
+  const totalActive  = allVouchers.filter(v => v.status === 'active').length
+  const totalUsed    = allVouchers.reduce((s, v) => s + v.used, 0)
+  const totalQuota   = allVouchers.reduce((s, v) => s + v.usage_limit, 0)
+  const globalCount  = allVouchers.filter(v => v.scope === 'global').length
 
   return (
     <AdminLayout active="vouchers">
@@ -94,11 +283,31 @@ export default function AdminVouchers() {
         action={<Btn onClick={openAdd}>+ Create Voucher</Btn>}
       />
 
+      {errorMsg && (
+        <div style={{
+          background: '#fee',
+          border: '1px solid #f99',
+          borderRadius: '6px',
+          padding: '12px 16px',
+          marginBottom: '20px',
+          color: '#c00',
+          fontSize: '13px'
+        }}>
+          {errorMsg}
+        </div>
+      )}
+
+      {loading ? (
+        <div style={{ textAlign: 'center', padding: '40px 20px', color: '#666' }}>
+          <p>Loading vouchers...</p>
+        </div>
+      ) : (
+        <>
       {/* ── Summary stats ── */}
       <div className={styles.statsRow}>
         <StatCard
           label="Active Vouchers" value={totalActive}
-          sub={`${vouchers.filter(v => v.status === 'expired').length} expired`}
+          sub={`${allVouchers.filter(v => v.status === 'expired').length} expired`}
           icon="M20 12V22H4V12 M22 7H2v5h20V7z M12 22V7"
         />
         <StatCard
@@ -109,7 +318,7 @@ export default function AdminVouchers() {
         />
         <StatCard
           label="Global Vouchers" value={globalCount}
-          sub={`${vouchers.length - globalCount} hotel-specific`}
+          sub={`${allVouchers.length - globalCount} hotel-specific`}
           icon="M12 22s-8-4.5-8-11.8A8 8 0 0 1 12 2a8 8 0 0 1 8 8.2c0 7.3-8 11.8-8 11.8z"
         />
         <StatCard
@@ -164,14 +373,14 @@ export default function AdminVouchers() {
       ) : (
         <div className={styles.voucherGrid}>
           {filtered.map(v => {
-            const usagePct = Math.min(100, Math.round((v.used / v.quota) * 100))
+            const usagePct = Math.min(100, Math.round((v.used / v.usage_limit) * 100))
             const isExpired = v.status === 'expired'
             return (
               <div key={v.id} className={`${styles.vCard} ${isExpired ? styles.vCardDim : ''}`}>
                 {/* Left accent strip */}
                 <div className={`${styles.vStrip} ${v.scope === 'global' ? styles.vStripGlobal : styles.vStripHotel}`}>
                   <span className={styles.vValue}>
-                    {v.type === 'percent' ? `${v.value}%` : `£${v.value}`}
+                    {v.type === 'percent' ? `${v.value}%` : `Rp${Number(v.value).toLocaleString('id-ID')}`}
                   </span>
                   <span className={styles.vType}>
                     {v.type === 'percent' ? 'off' : 'fixed'}
@@ -184,17 +393,27 @@ export default function AdminVouchers() {
                     <code className={styles.vCode}>{v.code}</code>
                     <div className={styles.vBadges}>
                       <Badge status={v.scope === 'global' ? 'global' : 'hotel'} />
+                      <Badge status={v.membershipTier || 'none'} />
                       <Badge status={v.status} />
                     </div>
                   </div>
 
                   <div className={styles.vMeta}>
-                    {v.scope === 'hotel' && v.hotel && (
+                    {v.scope === 'hotel' && v.hotel_name && (
                       <span className={styles.vHotel}>
                         <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
                           <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
                         </svg>
-                        {v.hotel}
+                        {v.hotel_name}
+                      </span>
+                    )}
+                    {v.scope === 'hotel' && v.room_type && (
+                      <span className={styles.vHotel}>
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                          <path d="M4 4h16v16H4z"/>
+                          <path d="M4 9h16"/>
+                        </svg>
+                        {v.room_type}
                       </span>
                     )}
                     {v.scope === 'global' && (
@@ -213,7 +432,7 @@ export default function AdminVouchers() {
                         <line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/>
                         <line x1="3" y1="10" x2="21" y2="10"/>
                       </svg>
-                      Expires {v.expiry}
+                      Expires {v.expiry_date}
                     </span>
                   </div>
 
@@ -226,7 +445,7 @@ export default function AdminVouchers() {
                       />
                     </div>
                     <span className={styles.vUsageText}>
-                      {v.used}/{v.quota} used ({usagePct}%)
+                      {v.used}/{v.usage_limit} used ({usagePct}%)
                     </span>
                   </div>
 
@@ -263,6 +482,19 @@ export default function AdminVouchers() {
         title={modal === 'add' ? 'Create New Voucher' : 'Edit Voucher'}
         width={560}
       >
+        {errorMsg && (
+          <div style={{
+            background: '#fee',
+            border: '1px solid #f99',
+            borderRadius: '6px',
+            padding: '12px 16px',
+            marginBottom: '16px',
+            color: '#c00',
+            fontSize: '13px'
+          }}>
+            {errorMsg}
+          </div>
+        )}
         <div className={styles.modalGrid}>
           <Field label="Voucher Code" hint="Letters, numbers, hyphens only. Will be uppercased.">
             <Input
@@ -281,10 +513,10 @@ export default function AdminVouchers() {
                 <option value="fixed">Fixed Amount (£)</option>
               </Select>
             </Field>
-            <Field label={form.type === 'percent' ? 'Discount Value (%)' : 'Discount Value (£)'}>
+            <Field label="Fixed Amount (Rp)">
               <Input
-                type="number" min="1" max={form.type === 'percent' ? 100 : undefined}
-                placeholder={form.type === 'percent' ? '10' : '50'}
+                type="number" min="1"
+                placeholder="50000"
                 value={form.value} onChange={set('value')}
               />
               {errors.value && <span className={styles.err}>{errors.value}</span>}
@@ -297,7 +529,7 @@ export default function AdminVouchers() {
                 <button
                   key={s} type="button"
                   className={`${styles.scopeCard} ${form.scope === s ? styles.scopeCardOn : ''}`}
-                  onClick={() => setForm(f => ({ ...f, scope: s, hotel: '' }))}
+                  onClick={() => setForm(f => ({ ...f, scope: s, hotel_id: '', hotel_name: '', room_type: '' }))}
                 >
                   <div className={styles.scopeIcon}>
                     {s === 'global' ? (
@@ -329,24 +561,50 @@ export default function AdminVouchers() {
 
           {form.scope === 'hotel' && (
             <Field label="Select Hotel">
-              <Select value={form.hotel} onChange={set('hotel')}>
+              <Select value={form.hotel_id} onChange={e => {
+                const hotelId = e.target.value
+                setForm(f => ({ ...f, hotel_id: hotelId, room_type: '' }))
+                setErrors(er => ({ ...er, hotel_id: '', room_type: '' }))
+              }}>
                 <option value="">— Choose a hotel —</option>
                 {approvedHotels.map(h => (
-                  <option key={h.id} value={h.name}>{h.name} ({h.owner})</option>
+                  <option key={h.id} value={h.id}>{h.name} ({h.owner})</option>
                 ))}
               </Select>
-              {errors.hotel && <span className={styles.err}>{errors.hotel}</span>}
+              {errors.hotel_id && <span className={styles.err}>{errors.hotel_id}</span>}
+            </Field>
+          )}
+
+          {form.scope === 'hotel' && (
+            <Field label={form.scope === 'hotel' ? 'Room Type (optional)' : 'Room Type'}>
+              <Select
+                value={form.room_type}
+                onChange={set('room_type')}
+                disabled={form.scope === 'hotel' && !form.hotel_id}
+              >
+                <option value="">— Any room type —</option>
+                {roomTypesLoading ? (
+                  <option value="">Loading room types...</option>
+                ) : (
+                  roomTypes.map(room => (
+                    <option key={room.value} value={room.value}>
+                      {room.label}
+                    </option>
+                  ))
+                )}
+              </Select>
+              {errors.room_type && <span className={styles.err}>{errors.room_type}</span>}
             </Field>
           )}
 
           <div className={styles.twoField}>
             <Field label="Expiry Date">
-              <Input type="date" value={form.expiry} onChange={set('expiry')} />
-              {errors.expiry && <span className={styles.err}>{errors.expiry}</span>}
+              <Input type="date" value={form.expiry_date} onChange={set('expiry_date')} />
+              {errors.expiry_date && <span className={styles.err}>{errors.expiry_date}</span>}
             </Field>
             <Field label="Usage Quota">
-              <Input type="number" min="1" placeholder="100" value={form.quota} onChange={set('quota')} />
-              {errors.quota && <span className={styles.err}>{errors.quota}</span>}
+              <Input type="number" min="1" placeholder="100" value={form.usage_limit} onChange={set('usage_limit')} />
+              {errors.usage_limit && <span className={styles.err}>{errors.usage_limit}</span>}
             </Field>
           </div>
 
@@ -361,18 +619,18 @@ export default function AdminVouchers() {
         {/* Preview strip */}
         <div className={styles.previewStrip}>
           <div className={`${styles.previewLeft} ${form.scope === 'global' ? styles.previewGlobal : styles.previewHotel}`}>
-            <span>{form.type === 'percent' ? `${form.value || '?'}%` : `£${form.value || '?'}`}</span>
+            <span>{form.type === 'percent' ? `${form.value || '?'}%` : `Rp${Number(form.value || 0).toLocaleString('id-ID')}`}</span>
             <span>{form.type === 'percent' ? 'off' : 'off'}</span>
           </div>
           <div className={styles.previewRight}>
             <code>{form.code || 'VOUCHER-CODE'}</code>
-            <span>{form.scope === 'global' ? '🌐 All hotels' : form.hotel ? `🏨 ${form.hotel}` : '🏨 Select hotel'}</span>
+            <span>{form.scope === 'global' ? '🌐 All hotels' : form.hotel_name ? `🏨 ${form.hotel_name}${form.room_type ? ` · 🛏️ ${form.room_type}` : ''}` : '🏨 Select hotel'}</span>
           </div>
         </div>
 
         <div className={styles.modalActions}>
           <Btn variant="outline" onClick={() => setModal(null)}>Cancel</Btn>
-          <Btn onClick={save}>{modal === 'add' ? 'Create Voucher' : 'Save Changes'}</Btn>
+          <Btn onClick={save} disabled={saving}>{saving ? 'Saving...' : modal === 'add' ? 'Create Voucher' : 'Save Changes'}</Btn>
         </div>
       </Modal>
 
@@ -385,7 +643,10 @@ export default function AdminVouchers() {
         message="This voucher will be permanently removed. Guests who have already used it will not be affected."
         confirmLabel="Delete Voucher"
         confirmDanger
+        disabled={deleting}
       />
+      </>
+      )}
     </AdminLayout>
   )
 }

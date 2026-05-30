@@ -1,50 +1,171 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import OwnerLayout from './OwnerLayout'
-import { PageHeader, Btn, Modal, Field, Input, Confirm, Empty, Table } from './OwnerUI'
-import { OWNER_HOTELS, OWNER_ROOMS as INIT, CURRENT_OWNER } from './OwnerData'
+import { PageHeader, Btn, Modal, Field, Input, Select, Confirm, Empty, Table } from './OwnerUI'
+import { CURRENT_OWNER } from './OwnerData'
+import { hotelService } from '../../services/hotelService'
+import { roomService } from '../../services/roomService'
 import styles from '../Rooms.module.css'
 
-const FACILITIES_LIST = ['WiFi', 'AC', 'Minibar', 'Safe', 'Jacuzzi', 'Balcony', 'Butler', 'Pool', 'Fireplace', 'Terrace', 'Private Terrace', 'Ocean View']
-const BLANK = { name: '', price: '', stock: '', facilities: [] }
+const FACILITIES_OPTIONS = [
+  { key: 'wifi', label: 'Wi-Fi' },
+  { key: 'ac', label: 'AC' },
+  { key: 'tv', label: 'TV' },
+  { key: 'minibar', label: 'Minibar' },
+  { key: 'safe', label: 'Brankas' },
+  { key: 'jacuzzi', label: 'Jacuzzi' },
+  { key: 'balcony', label: 'Balkon' },
+  { key: 'butler', label: 'Pelayan Pribadi' },
+  { key: 'pool', label: 'Kolam Renang' },
+  { key: 'fireplace', label: 'Perapian' },
+  { key: 'terrace', label: 'Terasa' },
+  { key: 'private_terrace', label: 'Terasa Pribadi' },
+  { key: 'ocean_view', label: 'Pemandangan Laut' },
+]
+
+const FACILITY_VARIANTS = [
+  { key: 'wifi', variants: ['wifi', 'wi-fi', 'wi fi'] },
+  { key: 'ac', variants: ['ac'] },
+  { key: 'tv', variants: ['tv'] },
+  { key: 'minibar', variants: ['minibar'] },
+  { key: 'safe', variants: ['safe', 'brankas'] },
+  { key: 'jacuzzi', variants: ['jacuzzi'] },
+  { key: 'balcony', variants: ['balcony', 'balkon'] },
+  { key: 'butler', variants: ['butler', 'pelayan'] },
+  { key: 'pool', variants: ['pool', 'kolam'] },
+  { key: 'fireplace', variants: ['fireplace', 'perapian'] },
+  { key: 'terrace', variants: ['terrace', 'terasa'] },
+  { key: 'private_terrace', variants: ['private terrace', 'terasa pribadi'] },
+  { key: 'ocean_view', variants: ['ocean view', 'pemandangan laut'] },
+]
+const ROOM_TYPE_OPTIONS = [
+  { value: 'single', label: 'Single' },
+  { value: 'double', label: 'Double' },
+  { value: 'suite', label: 'Suite' },
+  { value: 'deluxe', label: 'Deluxe' },
+  { value: 'presidential', label: 'Presidential' },
+]
+
+const BLANK = { name: '', description: '', capacity: '2', price: '', stock: '1', currency: 'IDR', room_type: 'deluxe', status: 'available', facilities: [] }
 
 export default function OwnerRooms() {
-  const myHotels = OWNER_HOTELS.filter((h) => h.ownerId === CURRENT_OWNER.id)
-  const [selectedHotel, setSelectedHotel] = useState(myHotels.find(h => h.status === 'approved')?.id || myHotels[0]?.id)
-  const [rooms, setRooms] = useState(INIT)
+  const [myHotels, setMyHotels] = useState([])
+  const [selectedHotel, setSelectedHotel] = useState(null)
+  const [rooms, setRooms] = useState([])
   const [modal, setModal] = useState(null)
   const [confirm, setConfirm] = useState(null)
   const [form, setForm] = useState(BLANK)
 
   const set = k => e => setForm(f => ({ ...f, [k]: e.target.value }))
-  const toggleFacility = fac => setForm(f => ({
-    ...f,
-    facilities: f.facilities.includes(fac)
-      ? f.facilities.filter(x => x !== fac)
-      : [...f.facilities, fac]
-  }))
+  const toggleFacility = key => setForm(f => ({
+      ...f,
+      facilities: f.facilities.includes(key)
+        ? f.facilities.filter(x => x !== key)
+        : [...(f.facilities || []), key]
+    }))
+
+  const mapFacilityToKey = (raw) => {
+    if (!raw) return null
+    const s = String(raw).toLowerCase().trim()
+    for (const m of FACILITY_VARIANTS) {
+      for (const v of m.variants) {
+        if (s.includes(v)) return m.key
+      }
+    }
+    // fallback: sanitize and use as-is
+    return s.replace(/[^a-z0-9_]/g, '_')
+  }
 
   const hotel = myHotels.find(h => h.id === Number(selectedHotel))
-  const hotelRooms = rooms[Number(selectedHotel)] || []
+  const hotelRooms = rooms || []
 
   const openAdd = () => { setForm(BLANK); setModal('add') }
   const openEdit = r => { setForm({ ...r, facilities: [...r.facilities] }); setModal(r) }
 
-  const save = () => {
-    if (!form.name || !form.price) return
-    const hotelId = Number(selectedHotel)
-    if (modal === 'add') {
-      const newRoom = { ...form, id: Date.now(), price: Number(form.price), stock: Number(form.stock) || 1 }
-      setRooms(r => ({ ...r, [hotelId]: [...(r[hotelId] || []), newRoom] }))
-    } else {
-      setRooms(r => ({ ...r, [hotelId]: r[hotelId].map(rm => rm.id === modal.id ? { ...rm, ...form, price: Number(form.price), stock: Number(form.stock) } : rm) }))
+  useEffect(() => {
+    let mounted = true
+    const load = async () => {
+      try {
+        const hs = await hotelService.getOwnerHotels()
+        if (!hs || hs.length === 0) {
+          setMyHotels([])
+          return
+        }
+        if (mounted) {
+          setMyHotels(hs)
+          const first = hs.find(h => Number(h.total_rooms || 0) > 0 && h.status === 'approved')
+            || hs.find(h => h.status === 'approved')
+            || hs[0]
+          setSelectedHotel(first?.id)
+        }
+      } catch (err) {
+        console.error('Failed to load owner hotels', err)
+      }
     }
-    setModal(null)
+    load()
+    return () => { mounted = false }
+  }, [])
+
+  useEffect(() => {
+    if (!selectedHotel) return
+    let mounted = true
+    const loadRooms = async () => {
+      try {
+        const rs = await roomService.getRoomsByHotel(selectedHotel)
+        // Normalize facilities to canonical keys
+        const normalized = rs.map(r => ({
+          ...r,
+          facilities: Array.isArray(r.facilities) ? r.facilities.map(mapFacilityToKey).filter(Boolean) : []
+        }))
+        if (mounted) setRooms(normalized)
+      } catch (err) {
+        console.error('Failed to load rooms for hotel', selectedHotel, err)
+      }
+    }
+    loadRooms()
+    return () => { mounted = false }
+  }, [selectedHotel])
+
+  const save = async () => {
+    if (!form.name || !form.price) return
+    try {
+      const hotelId = Number(selectedHotel)
+      const payload = {
+        name: form.name,
+        description: form.description || '',
+        capacity: Number(form.capacity) || 2,
+        price: Number(form.price),
+        currency: form.currency || 'IDR',
+        stock: Number(form.stock) || 1,
+        room_type: form.room_type || 'deluxe',
+        status: form.status || 'available',
+        facilities: form.facilities || [],
+      }
+      console.log('Saving room payload', payload)
+      if (modal === 'add') {
+        await roomService.createRoom(hotelId, payload)
+      } else {
+        await roomService.updateRoom(modal.id, payload)
+      }
+      const rs = await roomService.getRoomsByHotel(hotelId)
+      const normalized = rs.map(r => ({
+        ...r,
+        facilities: Array.isArray(r.facilities) ? r.facilities.map(mapFacilityToKey).filter(Boolean) : []
+      }))
+      setRooms(normalized)
+      setModal(null)
+    } catch (err) {
+      console.error('Failed to save room', err)
+    }
   }
 
-  const remove = () => {
-    const hotelId = Number(selectedHotel)
-    setRooms(r => ({ ...r, [hotelId]: r[hotelId].filter(rm => rm.id !== confirm) }))
-    setConfirm(null)
+  const remove = async () => {
+    try {
+      await roomService.deleteRoom(confirm)
+      setRooms(rs => rs.filter(rm => rm.id !== confirm))
+      setConfirm(null)
+    } catch (err) {
+      console.error('Failed to delete room', err)
+    }
   }
 
   return (
@@ -66,7 +187,7 @@ export default function OwnerRooms() {
             <div className={styles.hotelTabThumb} style={{ background: h.photo }} />
             <div className={styles.hotelTabInfo}>
               <span className={styles.hotelTabName}>{h.name}</span>
-              <span className={styles.hotelTabRooms}>{(rooms[h.id] || []).length} room types</span>
+              <span className={styles.hotelTabRooms}>{Number(h.total_rooms || 0)} room types</span>
             </div>
             <span className={`${styles.hotelTabStatus} ${h.status === 'approved' ? styles.stGreen : h.status === 'pending' ? styles.stAmber : styles.stRed}`}>
               {h.status}
@@ -99,10 +220,13 @@ export default function OwnerRooms() {
           head={['Room Name', 'Price / night', 'Stock', 'Facilities', 'Actions']}
           rows={hotelRooms.map(r => [
             <span key="n" className={styles.roomName}>{r.name}</span>,
-            <span key="p" className={styles.roomPrice}>£{r.price.toLocaleString()}</span>,
+            <span key="p" className={styles.roomPrice}>Rp{Number(r.price || 0).toLocaleString('id-ID')}</span>,
             <span key="s" className={styles.stockBadge}>{r.stock} available</span>,
             <div key="f" className={styles.facilityTags}>
-              {r.facilities.slice(0, 3).map(f => <span key={f}>{f}</span>)}
+              {r.facilities.slice(0, 3).map(f => {
+                const label = FACILITIES_OPTIONS.find(o => o.key === f)?.label || f
+                return <span key={f}>{label}</span>
+              })}
               {r.facilities.length > 3 && <span className={styles.more}>+{r.facilities.length - 3}</span>}
             </div>,
             <div key="a" className={styles.tableActions}>
@@ -119,23 +243,41 @@ export default function OwnerRooms() {
           <Input placeholder="e.g. Deluxe Suite" value={form.name} onChange={set('name')} />
         </Field>
         <div className={styles.twoField}>
-          <Field label="Price per Night (£)">
-            <Input type="number" placeholder="850" value={form.price} onChange={set('price')} min="0" />
+          <Field label="Price per Night (Rp)">
+            <Input type="number" placeholder="850000" value={form.price} onChange={set('price')} min="0" />
           </Field>
           <Field label="Stock (Available Units)">
             <Input type="number" placeholder="2" value={form.stock} onChange={set('stock')} min="1" />
           </Field>
         </div>
-        <Field label="Facilities">
+        <div className={styles.twoField}>
+          <Field label="Capacity">
+            <Input type="number" placeholder="2" value={form.capacity} onChange={set('capacity')} min="1" />
+          </Field>
+          <Field label="Room Type">
+            <Select value={form.room_type} onChange={set('room_type')}>
+              {ROOM_TYPE_OPTIONS.map(option => (
+                <option key={option.value} value={option.value}>{option.label}</option>
+              ))}
+            </Select>
+          </Field>
+        </div>
+        <Field label="Description">
+          <Input placeholder="Optional description" value={form.description} onChange={set('description')} />
+        </Field>
+        <Field label="Currency">
+          <Input value="Rupiah (IDR)" disabled />
+        </Field>
+        <Field label="Fasilitas">
           <div className={styles.facilityPicker}>
-            {FACILITIES_LIST.map(fac => (
+            {FACILITIES_OPTIONS.map(opt => (
               <button
-                key={fac}
+                key={opt.key}
                 type="button"
-                className={`${styles.facChip} ${form.facilities?.includes(fac) ? styles.facChipOn : ''}`}
-                onClick={() => toggleFacility(fac)}
+                className={`${styles.facChip} ${form.facilities?.includes(opt.key) ? styles.facChipOn : ''}`}
+                onClick={() => toggleFacility(opt.key)}
               >
-                {fac}
+                {opt.label}
               </button>
             ))}
           </div>

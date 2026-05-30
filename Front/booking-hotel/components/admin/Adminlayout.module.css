@@ -187,6 +187,24 @@
 
 .topbarRight { display: flex; align-items: center; gap: 10px; }
 
+.topbarLogout {
+  border: 1px solid #e5d2d2;
+  background: #fff6f6;
+  color: #a53f3f;
+  border-radius: 999px;
+  padding: 7px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.topbarLogout:hover {
+  color: #8f2e2e;
+  background: #feecec;
+  border-color: #e8baba;
+}
+
 .systemStatus {
   display: flex;
   align-items: center;
@@ -325,6 +343,7 @@
   .content { padding: 20px 16px; }
   .collapseBtn { display: none; }
   .systemStatus { display: none; }
+  .topbarLogout { display: none; }
   .dropdownMenu {
     right: -10px;
     width: 200px;

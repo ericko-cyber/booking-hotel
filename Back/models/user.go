@@ -6,24 +6,28 @@ import (
 )
 
 type User struct {
-	ID           int            `gorm:"primaryKey" json:"id"`
-	Name         string         `json:"name"`
-	Email        string         `gorm:"uniqueIndex" json:"email"`
-	Password     string         `json:"-"`
-	Phone        sql.NullString `json:"phone"`
-	Role         string         `gorm:"type:enum('user','owner','admin')" json:"role"`
-	IsAdmin      bool           `json:"is_admin"`
-	ProfileImage sql.NullString `json:"profile_image"`
-	Bio          sql.NullString `json:"bio"`
-	Address      sql.NullString `json:"address"`
-	City         sql.NullString `json:"city"`
-	Province     sql.NullString `json:"province"`
-	PostalCode   sql.NullString `json:"postal_code"`
-	Country      string         `json:"country"`
-	Status       string         `gorm:"type:enum('active','inactive','suspended')" json:"status"`
-	LastLogin    *time.Time     `json:"last_login"`
-	CreatedAt    time.Time      `json:"created_at"`
-	UpdatedAt    time.Time      `json:"updated_at"`
+	ID                   int            `gorm:"primaryKey" json:"id"`
+	Name                 string         `json:"name"`
+	Email                string         `gorm:"uniqueIndex" json:"email"`
+	Password             string         `json:"-"`
+	Phone                sql.NullString `json:"phone"`
+	Role                 string         `gorm:"type:enum('user','owner','admin')" json:"role"`
+	IsAdmin              bool           `json:"is_admin"`
+	MembershipTier       string         `gorm:"type:enum('none','silver','gold','platinum');default:'none'" json:"membership_tier"`
+	MembershipStatus     string         `gorm:"type:enum('inactive','active','suspended','expired');default:'inactive'" json:"membership_status"`
+	MembershipStartDate  *time.Time     `json:"membership_start_date"`
+	MembershipExpiryDate *time.Time     `json:"membership_expiry_date"`
+	ProfileImage         sql.NullString `json:"profile_image"`
+	Bio                  sql.NullString `json:"bio"`
+	Address              sql.NullString `json:"address"`
+	City                 sql.NullString `json:"city"`
+	Province             sql.NullString `json:"province"`
+	PostalCode           sql.NullString `json:"postal_code"`
+	Country              string         `json:"country"`
+	Status               string         `gorm:"type:enum('active','inactive','suspended')" json:"status"`
+	LastLogin            *time.Time     `json:"last_login"`
+	CreatedAt            time.Time      `json:"created_at"`
+	UpdatedAt            time.Time      `json:"updated_at"`
 }
 
 // TableName specifies the table name

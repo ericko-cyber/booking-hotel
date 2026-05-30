@@ -1,20 +1,40 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import OwnerLayout from './OwnerLayout'
 import { PageHeader, StatCard, Card } from './OwnerUI'
-import { OWNER_BOOKINGS, OWNER_HOTELS, CURRENT_OWNER } from './OwnerData'
+import { CURRENT_OWNER } from './OwnerData'
+import { bookingService } from '../../services/bookingService'
+import { hotelService } from '../../services/hotelService'
 import styles from '../Revenue.module.css'
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
 export default function OwnerRevenue() {
   const [period, setPeriod] = useState('year')
+  const [myHotels, setMyHotels] = useState([])
+  const [myBookings, setMyBookings] = useState([])
 
-  const myHotels = OWNER_HOTELS.filter((h) => h.ownerId === CURRENT_OWNER.id)
+  useEffect(() => {
+    let mounted = true
+    const load = async () => {
+      try {
+        const [hs, bs] = await Promise.all([hotelService.getOwnerHotels(), bookingService.getOwnerBookings()])
+        if (mounted) {
+          setMyHotels(hs)
+          setMyBookings(bs)
+        }
+      } catch (err) {
+        console.error('Failed to load revenue data', err)
+      }
+    }
+    load()
+    return () => { mounted = false }
+  }, [])
+
   const myHotelIds = myHotels.map((h) => h.id)
-  const myBookings = OWNER_BOOKINGS.filter((b) => myHotelIds.includes(b.hotelId))
+  const myBookingsFiltered = myBookings.filter((b) => myHotelIds.includes(b.hotelId))
 
-  const paid = myBookings.filter(b => b.status === 'paid')
-  const totalRevenue = paid.reduce((s, b) => s + b.total, 0)
+  const paid = myBookingsFiltered.filter(b => b.status === 'paid')
+  const totalRevenue = paid.reduce((s, b) => s + (b.total || 0), 0)
   const avgPerBooking = paid.length ? Math.round(totalRevenue / paid.length) : 0
   const monthlyRevenue = MONTHS.map((month, index) => {
     const monthPaid = paid.filter((b) => new Date(b.checkIn).getMonth() === index)
@@ -30,7 +50,7 @@ export default function OwnerRevenue() {
 
   const perHotel = myHotels.map((hotel) => ({
     name: hotel.name,
-    revenue: paid.filter(b => b.hotelId === hotel.id).reduce((s, b) => s + b.total, 0),
+    revenue: paid.filter(b => b.hotelId === hotel.id).reduce((s, b) => s + (b.total || 0), 0),
     bookings: paid.filter(b => b.hotelId === hotel.id).length,
   }))
 

@@ -1,0 +1,32 @@
+.container {
+  padding: 28px;
+  max-width: 720px;
+  margin: 32px auto;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 6px 20px rgba(13,61,74,0.06);
+  font-family: var(--font-sans);
+}
+.title {
+  font-size: 20px;
+  margin-bottom: 12px;
+  color: var(--teal);
+}
+.info {
+  margin-bottom: 8px;
+  color: var(--text-mid);
+}
+.actions {
+  margin-top: 18px;
+}
+.btn {
+  background: var(--teal-btn);
+  color: white;
+  padding: 10px 14px;
+  border-radius: 6px;
+}
+.btn.secondary {
+  background: transparent;
+  color: var(--teal-btn);
+  border: 1px solid var(--teal-btn);
+}
